@@ -1,0 +1,678 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+
+
+<script type="text/javascript">
+  var meerkeuzevraag = new function () {
+    let correctWord = '';
+    let currentQuestionData = null; // Store current question data for retry
+
+    // Strip HTML tags from text
+    function stripHtml(html) {
+      if (!html) return '';
+      const tmp = document.createElement('DIV');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+
+    // Get words and meanings from woordenLijstExtended pages of (optioneel) custom word set
+    function getWordsAndMeaningsFromProject() {
+      // Eerst kijken of er een Woordenlijst Custom-pagina is; alleen dan is de custom set toegestaan
+      let hasCustomWordPage = false;
+      try {
+        if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+          for (let i = 0; i < x_pages.length; i++) {
+            const pageXML = x_pages[i];
+            if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+            const tagNameCheck = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+            if (tagNameCheck === 'woordenlijstcustom' || tagNameCheck === 'woordenlijst custom') {
+              hasCustomWordPage = true;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('meerkeuzevraag: error while detecting custom word pages:', e);
+      }
+
+      // Alleen als er een Woordenlijst Custom-pagina is, proberen we de custom word set te gebruiken
+      if (hasCustomWordPage && typeof window.wtGetCustomWordSet === 'function') {
+        const customSet = window.wtGetCustomWordSet();
+        if (customSet && customSet.length > 0) {
+          // Convert to pairs format - ensure both word and betekenis exist
+          const pairs = customSet.map(w => ({
+            word: (w.word || w || '').trim(),
+            meaning: (w.betekenis || w.meaning || '').trim()
+          })).filter(p => p.word && p.word.length > 0 && p.meaning && p.meaning.length > 0);
+          if (pairs.length > 0) {
+            return pairs;
+          }
+        }
+      }
+      
+      // Anders woorden uit woordenLijstExtended / woordenLijstCustom ophalen
+      const allPairs = [];
+      
+      try {
+        // Loop through all pages in the project
+        if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+          for (let i = 0; i < x_pages.length; i++) {
+            const pageXML = x_pages[i];
+            if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+            
+            // Check if this is a woordenLijstExtended or woordenLijstCustom page
+            const tagName = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+            if (tagName === 'woordenlijstextended' || tagName === 'woordenlijst extended' ||
+                tagName === 'woordenlijstcustom' || tagName === 'woordenlijst custom') {
+              const wordListText = pageXML.getAttribute('wordListText') || '';
+              
+              if (!wordListText || wordListText.trim() === '') continue;
+              
+              // Parse the text format (same as woordenLijstExtended.html)
+              let wordBlocks = wordListText.split(/\n\s*\n/);
+              
+              if (wordBlocks.length === 1) {
+                const allLines = wordListText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                wordBlocks = [];
+                let currentBlock = [];
+                
+                allLines.forEach((line) => {
+                  const wordMatch = line.match(/^([^:]+):(.+)$/);
+                  const isNewWord = wordMatch && !line.toLowerCase().startsWith('contextzin');
+                  
+                  if (isNewWord && currentBlock.length > 0) {
+                    wordBlocks.push(currentBlock.join('\n'));
+                    currentBlock = [line];
+                  } else {
+                    currentBlock.push(line);
+                  }
+                });
+                
+                if (currentBlock.length > 0) {
+                  wordBlocks.push(currentBlock.join('\n'));
+                }
+              }
+              
+              wordBlocks.forEach(block => {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length === 0) return;
+                
+                let word = '';
+                let betekenis = '';
+                
+                lines.forEach(line => {
+                  const wordMatch = line.match(/^([^:]+):(.+)$/);
+                  if (wordMatch && !line.toLowerCase().startsWith('contextzin')) {
+                    word = stripHtml(wordMatch[1].trim());
+                    betekenis = stripHtml(wordMatch[2].trim());
+                  }
+                });
+                
+                if (word && betekenis) {
+                  allPairs.push({ word: word, meaning: betekenis });
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error getting words from project:', e);
+      }
+      
+      return allPairs;
+    }
+
+    // Get words from woordenLijstExtended pages or (optioneel) custom word set (for backward compatibility)
+    function getWordsFromProject() {
+      // Eerst kijken of er een Woordenlijst Custom-pagina is; alleen dan is de custom set toegestaan
+      let hasCustomWordPage = false;
+      try {
+        if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+          for (let i = 0; i < x_pages.length; i++) {
+            const pageXML = x_pages[i];
+            if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+            const tagNameCheck = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+            if (tagNameCheck === 'woordenlijstcustom' || tagNameCheck === 'woordenlijst custom') {
+              hasCustomWordPage = true;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('meerkeuzevraag: error while detecting custom word pages (getWordsFromProject):', e);
+      }
+
+      // Alleen als er een Woordenlijst Custom-pagina is, proberen we de custom word set te gebruiken
+      if (hasCustomWordPage && typeof window.wtGetCustomWordSet === 'function') {
+        const customSet = window.wtGetCustomWordSet();
+        if (customSet && customSet.length > 0) {
+          const words = customSet.map(w => (w.word || w || '').trim()).filter(w => w && w.length > 0);
+          if (words.length > 0) {
+            return words;
+          }
+        }
+      }
+      
+      // Anders woorden uit getWordsAndMeaningsFromProject gebruiken
+      const pairs = getWordsAndMeaningsFromProject();
+      return pairs.map(p => p.word);
+    }
+
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('quizWrapper');
+      if (!wrapper) {
+        return;
+      }
+      
+      // Add translation under intro text
+      const introTextEl = wrapper.querySelector('.introText');
+      if (introTextEl && typeof x_addTranslationUnder === 'function') {
+        x_addTranslationUnder(introTextEl);
+      }
+      
+      const vraag = x_currentPageXML.getAttribute('woordItemText') || '';
+      
+      // Try to get options - check both attribute and child nodes
+      let optiesRaw = x_currentPageXML.getAttribute('woordItemOptions') || '';
+      
+      // If attribute is empty, try to get from child nodes (CDATA or text nodes)
+      if (!optiesRaw || optiesRaw.trim() === '') {
+        const optionsElements = x_currentPageXML.getElementsByTagName('woordItemOptions');
+        if (optionsElements.length > 0) {
+          optiesRaw = optionsElements[0].textContent || optionsElements[0].nodeValue || '';
+        } else {
+          const childNodes = x_currentPageXML.childNodes;
+          for (let i = 0; i < childNodes.length; i++) {
+            if (childNodes[i].nodeName === 'woordItemOptions' || 
+                (childNodes[i].nodeType === 1 && childNodes[i].getAttribute && childNodes[i].getAttribute('name') === 'woordItemOptions')) {
+              optiesRaw = childNodes[i].textContent || childNodes[i].nodeValue || '';
+              break;
+            }
+          }
+        }
+      }
+      
+      // Parse options - handle both newline-separated and other formats
+      let opties = [];
+      if (optiesRaw && optiesRaw.trim() !== '') {
+        opties = optiesRaw.split(/\r?\n/)
+          .map(o => stripHtml(o.trim()))
+          .filter(o => o && o.length > 0);
+      }
+
+      let originalWord = stripHtml((x_currentPageXML.getAttribute('woordItemCorrect') || '').trim());
+      
+      // If no word is filled, get a random word from woordenLijstExtended
+      if (!originalWord || originalWord === '') {
+        const wordsFromList = getWordsFromProject();
+        if (wordsFromList && wordsFromList.length > 0) {
+          const randomIndex = Math.floor(Math.random() * wordsFromList.length);
+          originalWord = wordsFromList[randomIndex];
+        }
+      }
+      
+      // Store the correct answer - will be either the word or the meaning depending on whether options are meanings
+      let correctAnswer = originalWord;
+      
+      // If no options are provided and we have a word, get suggestions from woordenLijstExtended
+      if ((!opties || opties.length === 0) && originalWord && originalWord !== '') {
+        const pairsFromList = getWordsAndMeaningsFromProject();
+        if (pairsFromList && pairsFromList.length > 0) {
+          const correctPair = pairsFromList.find(p => p.word.toLowerCase() === originalWord.toLowerCase());
+          const correctMeaning = correctPair ? correctPair.meaning : originalWord;
+          
+          const otherPairs = pairsFromList.filter(p => p.word.toLowerCase() !== originalWord.toLowerCase());
+          if (otherPairs.length >= 3) {
+            const shuffled = [...otherPairs].sort(() => Math.random() - 0.5);
+            const randomMeanings = shuffled.slice(0, 3).map(p => p.meaning);
+            opties = [correctMeaning, ...randomMeanings].sort(() => Math.random() - 0.5);
+            correctAnswer = correctMeaning;
+          } else if (otherPairs.length > 0) {
+            const allMeanings = otherPairs.map(p => p.meaning);
+            opties = [correctMeaning, ...allMeanings].sort(() => Math.random() - 0.5);
+            correctAnswer = correctMeaning;
+          } else {
+            opties = [correctMeaning];
+            correctAnswer = correctMeaning;
+          }
+        }
+      }
+      
+      // If still no word, show error
+      if (!originalWord || originalWord === '') {
+        wrapper.querySelector('.quizContainer').innerHTML = '<p style="color:red;">Onvolledige quizgegevens. Vul een woord in of voeg een Woordenlijst Extended pagina toe aan je project.</p>';
+        return;
+      }
+      
+      // Multiple choice mode: use meaning if we generated options with meanings, otherwise use word
+      // Check if options are meanings by comparing with the word list
+      if (correctAnswer !== originalWord && correctAnswer) {
+        correctWord = correctAnswer; // Use the meaning (we generated options)
+      } else if (opties && opties.length > 0 && originalWord && originalWord !== '') {
+        // Options were provided - always check if they are meanings
+        const pairsFromList = getWordsAndMeaningsFromProject();
+        if (pairsFromList && pairsFromList.length > 0) {
+          const correctPair = pairsFromList.find(p => p.word.toLowerCase() === originalWord.toLowerCase());
+          if (correctPair && correctPair.meaning) {
+            // Get the correct meaning
+            const correctMeaningStripped = stripHtml(correctPair.meaning).trim().toLowerCase();
+            
+            // Check if any option matches the correct meaning (normalized)
+            const hasMatchingMeaning = opties.some(opt => {
+              const optNormalized = stripHtml(opt).trim().toLowerCase();
+              return optNormalized === correctMeaningStripped;
+            });
+            
+            // Check if any option matches the word (to determine if options are words)
+            const hasMatchingWord = opties.some(opt => {
+              const optNormalized = stripHtml(opt).trim().toLowerCase();
+              return optNormalized === originalWord.toLowerCase();
+            });
+            
+            if (hasMatchingMeaning) {
+              // Options are meanings - find the exact option that matches and use it
+              const matchingOption = opties.find(opt => {
+                const optNormalized = stripHtml(opt).trim().toLowerCase();
+                return optNormalized === correctMeaningStripped;
+              });
+              correctWord = matchingOption ? matchingOption : correctPair.meaning;
+            } else if (hasMatchingWord) {
+              // Options are words, use word as correct answer
+              correctWord = originalWord;
+            } else {
+              // Can't determine - assume options are meanings (most common case for audio exercises)
+              correctWord = correctPair.meaning;
+            }
+          } else {
+            correctWord = originalWord; // Fallback: use word
+          }
+        } else {
+          correctWord = originalWord; // Fallback: use word
+        }
+      } else {
+        correctWord = originalWord; // Use the word
+      }
+      
+      
+      // Multiple choice requires at least 2 options
+      if (opties.length < 2) {
+        wrapper.querySelector('.quizContainer').innerHTML = '<div style="color:red; padding: 1em; background: #ffe6e6; border-radius: 8px; max-width: 600px; margin: 0 auto;"><p style="margin: 0 0 0.5em 0; font-weight: bold;">Onvolledige quizgegevens.</p><p style="margin: 0;">Voeg minimaal 2 keuzes toe in het veld <strong>"Keuzes (één per regel)"</strong> en sla de pagina opnieuw op.</p><p style="margin: 0.5em 0 0 0; font-size: 0.9em; color: #666;">Let op: Elke keuze moet op een nieuwe regel staan.</p></div>';
+        return;
+      }
+      
+      const wordToSpeak = stripHtml((x_currentPageXML.getAttribute('woord') || originalWord || '').trim());
+      const imageHtml = x_currentPageXML.getAttribute('woordItemImageHtml') || '';
+      const retryLabel = x_currentPageXML.getAttribute('retryBtnTxt') || 'probeer opnieuw';
+
+      // Store current question data for retry. wordForStats = actual word (for progress storage), not meaning.
+      currentQuestionData = {
+        vraag: vraag,
+        opties: opties,
+        correctWord: correctWord,
+        imageHtml: imageHtml,
+        retryLabel: retryLabel,
+        wordToSpeak: wordToSpeak,
+        wordForStats: originalWord
+      };
+      
+      renderQuestion(vraag, opties, correctWord, imageHtml, retryLabel, wordToSpeak);
+    };
+
+    function speak(text) {
+      speakWithElevenLabs(text);
+    }
+
+    function playSuccess() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {
+      }
+    }
+
+    function playError() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+      } catch (e) {
+      }
+    }
+
+    function launchConfetti() {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      setTimeout(() => confetti.reset(), 1000);
+    }
+
+    function renderQuestion(vraag, opties, correct, imageHtml, retryLabel, wordToSpeak) {
+      const container = document.querySelector('.quizContainer');
+      container.innerHTML = '';
+
+      // Normalize correct answer for comparison (strip HTML, trim, lowercase)
+      const correctStripped = stripHtml(correct).trim().toLowerCase();
+
+      // Vraagtekst is now in .introText.subtitle, so we don't need to create it here
+
+      const matchContainer = document.createElement('div');
+      matchContainer.className = 'matchcontainer';
+      
+      const wnaItemBlock = document.createElement('div');
+      wnaItemBlock.className = 'wnaItemBlock';
+
+      // Spreekknop
+      const speakBtn = document.createElement('button');
+      speakBtn.className = 'speakBtn';
+      speakBtn.id = 'speakButton';
+      speakBtn.innerHTML = "Klik om te beluisteren";
+      speakBtn.addEventListener('click', () => speak(wordToSpeak || correct));
+      wnaItemBlock.appendChild(speakBtn);
+
+      const successMsg = document.createElement('div');
+      successMsg.className = 'successMsg';
+      successMsg.innerHTML = `
+        <div class="feedback-message">
+          <div class="feedback-content">
+            <span class="feedback-text">goed gedaan!</span>
+          </div>
+        </div>
+      `;
+      successMsg.style.display = 'none';
+
+      // Multiple choice mode
+      const optionsGrid = document.createElement('div');
+      optionsGrid.className = 'optionsVertical';
+
+      let wrongAttempts = [];
+      let prevStats = (window.wtGetStats ? (window.wtGetStats('meerkeuzevraag') || {}) : {});
+      
+      // Randomize the order of options
+      const shuffledOptions = [...opties].sort(() => Math.random() - 0.5);
+      
+      shuffledOptions.forEach(option => {
+        const btn = document.createElement('button');
+        btn.className = 'optionBtn';
+        btn.textContent = stripHtml(option);
+
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('disabled')) return;
+
+          document.querySelectorAll('.optionBtn').forEach(b => b.classList.add('disabled'));
+
+          // Normalize comparison: strip HTML, trim whitespace, convert to lowercase
+          const optionStripped = stripHtml(option).trim().toLowerCase();
+          const correctNormalized = correctStripped.trim().toLowerCase();
+          
+          if (optionStripped === correctNormalized) {
+            btn.classList.add('correct');
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              playSuccess();
+              launchConfetti();
+              successMsg.style.display = 'block';
+            }
+            // Store progress by word (not meaning) so wt:globalWordStats keys match word list
+            const wordForStats = (currentQuestionData && currentQuestionData.wordForStats) ? stripHtml(String(currentQuestionData.wordForStats)).trim() : correctStripped;
+            if (window.wtRecordAttempt) window.wtRecordAttempt('meerkeuzevraag', wordForStats, true);
+          } else {
+            btn.classList.add('wrong');
+            playError();
+            successMsg.style.display = 'none';
+            wrongAttempts.push({ chosen: optionStripped, correct: correctStripped });
+            const wordForStats = (currentQuestionData && currentQuestionData.wordForStats) ? stripHtml(String(currentQuestionData.wordForStats)).trim() : correctStripped;
+            if (window.wtRecordAttempt) window.wtRecordAttempt('meerkeuzevraag', wordForStats, false, optionStripped);
+            // Na een moment automatisch resetten en opnieuw laten kiezen (geen probeer-opnieuw knop)
+            setTimeout(() => {
+              if (currentQuestionData) {
+                renderQuestion(
+                  currentQuestionData.vraag,
+                  currentQuestionData.opties,
+                  currentQuestionData.correctWord,
+                  currentQuestionData.imageHtml,
+                  currentQuestionData.retryLabel,
+                  currentQuestionData.wordToSpeak
+                );
+              } else {
+                meerkeuzevraag.init();
+              }
+            }, 2000);
+          }
+        });
+
+        optionsGrid.appendChild(btn);
+      });
+
+      wnaItemBlock.appendChild(optionsGrid);
+      
+      // Centered feedback area under the whole quiz
+      const centerBar = document.createElement('div');
+      centerBar.className = 'centerBar';
+      centerBar.appendChild(successMsg);
+      
+      matchContainer.appendChild(wnaItemBlock);
+      container.appendChild(matchContainer);
+      container.appendChild(centerBar);
+    }
+  };
+
+  meerkeuzevraag.init();
+</script>
+
+<div id="quizWrapper" class="general-wrapper">
+  <div class="introText subtitle">Beluister het geluidsfragment en kies het juiste antwoord.</div>
+  <div class="quizContainer"></div>
+</div>
+
+<style>
+  #quizWrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  #quizWrapper .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+  }
+
+  .quizContainer {
+    margin-top: 1.5rem;
+  }
+
+  .matchcontainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .wnaItemBlock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .quizQuestion {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #222;
+  }
+
+  .speakBtn {
+    display: block;
+    margin: 0 auto 20px auto;
+    padding: 0.8rem 1.2rem;
+    font-size: 1.1rem;
+    color: white;
+    background-color: #0077cc;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s ease;
+  }
+
+  .speakBtn.speaking {
+    animation: pulse 0.7s infinite;
+    background-color: #e0f0ff !important;
+    color: #005fa3 !important;
+    border-color: #005fa3 !important;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.07); }
+    100% { transform: scale(1); }
+  }
+
+  #speakButton {
+    background: #7E1AE3 !important;
+    color: white !important;
+    text-transform: lowercase;
+  }
+
+  .speakBtn i {
+    margin-right: 8px;
+    font-size: 1.4rem;
+    vertical-align: middle;
+  }
+
+  .speakBtn:hover {
+    background-color: #005fa3;
+  }
+
+  .optionsVertical {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .optionsVertical .optionBtn {
+    background-color: white !important;
+  }
+
+  .optionsVertical .optionBtn:hover {
+    background-color: #f5f0ff !important;
+  }
+
+  .optionBtn {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: #f9f9f9 !important;
+    color: black;
+    width: 100%;
+    text-align: center;
+  }
+
+  .optionBtn:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+
+  .optionBtn.correct {
+    background-color: #28a745 !important;
+    border-color: #1e7e34 !important;
+    color: white !important;
+  }
+
+  .optionBtn.wrong {
+    background-color: #dc3545 !important;
+    border-color: #bd2130 !important;
+    color: white !important;
+  }
+
+  .successMsg {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #28a745;
+    text-align: center;
+  }
+
+  .centerBar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .feedback-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+
+  .feedback-content {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid transparent;
+  }
+
+  .feedback-text {
+    font-weight: 600;
+    font-size: 1.1em;
+  }
+
+  @media (max-width: 600px) {
+    .optionBtn {
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+    }
+    .optionsVertical {
+      gap: 0.8rem;
+    }
+  }
+</style>
+

@@ -1,0 +1,308 @@
+<script type="text/javascript">
+  var newFlashCard = new function () {
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('fcwrapper');
+      if (!wrapper) return;
+
+      const intro = x_currentPageXML.getAttribute('text') || '';
+      const introTextEl = wrapper.querySelector('.introText');
+      introTextEl.innerHTML = x_addLineBreaks(intro);
+      
+      // Add translation under intro text
+      if (typeof x_addTranslationUnder === 'function') {
+        x_addTranslationUnder(introTextEl, intro);
+      }
+
+      const imageA = x_currentPageXML.getAttribute('img') || '';
+      const sideA = x_currentPageXML.getAttribute('sideA') || '';
+      const sideB = x_currentPageXML.getAttribute('sideB') || '';
+
+      if ((!imageA && !sideA) || !sideB) {
+        wrapper.querySelector('.cardContainer').innerHTML = '<p style="color:red;">Flashcard ontbreekt. Voeg een afbeelding of tekst toe voor de voorzijde.</p>';
+        return;
+      }
+
+      renderCard(imageA, sideA, sideB);
+    };
+
+    // Neutral flip sound aligned with the simple tones used for correct/incorrect
+    function playFlipSound(toBack) {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        // Short envelope
+        const now = audioContext.currentTime;
+        const startGain = 0.25;
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.exponentialRampToValueAtTime(startGain, now + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        // Upward blip when flipping to back, downward blip when flipping to front
+        const f1 = toBack ? 700 : 800;
+        const f2 = toBack ? 900 : 600;
+        oscillator.frequency.setValueAtTime(f1, now);
+        oscillator.frequency.linearRampToValueAtTime(f2, now + 0.16);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.2);
+      } catch (e) {
+        // Fallback: no sound
+      }
+    }
+
+    function renderCard(imageA, sideAContent, sideBContent) {
+      const container = document.querySelector('.cardContainer');
+      container.innerHTML = '';
+
+      const card = document.createElement('div');
+      card.className = 'flashcard';
+
+      // Build front side content
+      const frontDiv = document.createElement('div');
+      frontDiv.className = 'cardFront';
+      
+      // Add class based on what content is present
+      if (imageA && sideAContent) {
+        frontDiv.classList.add('hasBoth');
+      } else if (imageA) {
+        frontDiv.classList.add('hasImage');
+      } else if (sideAContent) {
+        frontDiv.classList.add('hasText');
+      }
+      
+      // Handle image
+      if (imageA) {
+        const img = document.createElement('img');
+        img.src = imageA;
+        img.alt = 'Flashcard voorzijde';
+        frontDiv.appendChild(img);
+      }
+      
+      // Handle text/HTML content
+      if (sideAContent) {
+        const textContent = document.createElement('div');
+        textContent.className = 'cardTextContent';
+        textContent.innerHTML = sideAContent;
+        frontDiv.appendChild(textContent);
+      }
+      
+      const iconDiv = document.createElement('div');
+      iconDiv.className = 'flashcard-icon';
+      iconDiv.innerHTML = '<i class="fa fa-arrows-rotate"></i>';
+      frontDiv.appendChild(iconDiv);
+
+      // Build back side
+      const backDiv = document.createElement('div');
+      backDiv.className = 'cardBack';
+      backDiv.innerHTML = sideBContent;
+      const backIconDiv = document.createElement('div');
+      backIconDiv.className = 'flashcard-icon';
+      backIconDiv.innerHTML = '<i class="fa fa-arrows-rotate"></i>';
+      backDiv.appendChild(backIconDiv);
+
+      const cardInner = document.createElement('div');
+      cardInner.className = 'cardInner';
+      cardInner.appendChild(frontDiv);
+      cardInner.appendChild(backDiv);
+      
+      card.appendChild(cardInner);
+
+      card.addEventListener('click', () => {
+        const willFlipToBack = !card.classList.contains('flipped');
+        playFlipSound(willFlipToBack);
+        card.classList.toggle('flipped');
+
+        if (!card.classList.contains('flipped')) {
+          // const utterance = new SpeechSynthesisUtterance(stripHTML(sideAContent));
+          // utterance.lang = 'nl-NL';
+          // window.speechSynthesis.cancel();
+          // window.speechSynthesis.speak(utterance);
+        }
+      });
+
+      container.appendChild(card);
+    }
+
+    function stripHTML(html) {
+      let tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || "";
+    }
+  };
+
+  newFlashCard.init();
+</script>
+
+<div id="fcwrapper" class="general-wrapper">
+  <div class="introText"></div>
+  <div class="cardContainer"></div>
+</div>
+
+<style>
+  #fcwrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 1rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+  }
+
+  .introText p {
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+
+
+.cardContainer {
+  margin-top: 25px;
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Added for vertical centering */
+  width: 100%;
+  height: 300px; /* Set a consistent height */
+}
+
+.flashcard {
+  width: 400px;
+  height: 300px;
+  perspective: 1000px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative; /* Important for centering inner content */
+}
+
+.cardInner {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s;
+  transform-origin: center center;
+  position: relative;
+  margin: 0 auto; /* Ensures horizontal centering */
+}
+
+  .flashcard.flipped .cardInner {
+    transform: rotateY(180deg);
+  }
+
+.cardFront, .cardBack {
+  position: absolute;
+  cursor:pointer;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  text-align: center !important;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background-color: white;
+  border: 2px solid #ccc;
+  text-transform: lowercase;
+  overflow: hidden;
+}
+
+  /* Only image: make it as large as possible */
+  .cardFront.hasImage img {
+    max-height: 100%;
+    max-width: 100%;
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Only text: make it fit nicely */
+  .cardFront.hasText .cardTextContent {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Both image and text: share the space */
+  .cardFront.hasBoth {
+    justify-content: space-around;
+  }
+
+  .cardFront.hasBoth img {
+    max-height: 50%;
+    max-width: 100%;
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .cardFront.hasBoth .cardTextContent {
+    max-height: 50%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .cardTextContent {
+    width: 100%;
+  }
+
+  .cardTextContent p {
+    font-size: 3.5vmin;
+    color: #333;
+    margin: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .cardBack {
+    transform: rotateY(180deg);
+    border: 2px solid #7E1AE3;
+    background-color: #F7F2FD;
+  }
+
+  .cardBack p {
+    font-size: 3.5vmin;
+  }
+
+  .cardBack img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .flashcard-icon {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    font-size: 2rem;
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>

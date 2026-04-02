@@ -1,0 +1,318 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<script type="text/javascript">
+  var woordtrainerImageQuiz = new function () {
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('quizWrapper');
+      if (!wrapper) return;
+
+      const intro = x_currentPageXML.getAttribute('text') || '';
+
+      const vraag = x_currentPageXML.getAttribute('woordItemText') || '';
+      const opties = (x_currentPageXML.getAttribute('woordItemOptions') || '').split('|');
+      const correct = x_currentPageXML.getAttribute('woordItemCorrect') || '';
+      const imageHtml = x_currentPageXML.getAttribute('woordItemImageHtml') || '';
+      const image = x_currentPageXML.getAttribute('img') || '';
+      const retryLabel = x_currentPageXML.getAttribute('retryBtnTxt') || 'probeer opnieuw';
+
+      if (opties.length < 2 || !correct || !image) {
+        wrapper.querySelector('.quizContainer').innerHTML = '<p style="color:red;">Onvolledige quizgegevens.</p>';
+        return;
+      }
+
+      renderQuestion(vraag, opties, correct, image, retryLabel);
+    };
+
+    function playSuccess() {
+      const audio = new Audio("https://fedducate.nl/sounds/correct.mp3");
+      audio.play();
+    }
+
+    function playError() {
+      const audio = new Audio("https://fedducate.nl/sounds/error.mp3");
+      audio.play();
+    }
+
+    function launchConfetti() {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      setTimeout(() => confetti.reset(), 1000);
+    }
+
+    function renderQuestion(vraag, opties, correct, image, retryLabel) {
+      const container = document.querySelector('.quizContainer');
+      container.innerHTML = '';
+
+      const vraagEl = document.createElement('div');
+      vraagEl.className = 'quizQuestion';
+      vraagEl.textContent = vraag;
+      container.appendChild(vraagEl);
+
+      const layout = document.createElement('div');
+      layout.className = 'quizLayout';
+
+      const left = document.createElement('div');
+      left.className = 'quizImage';
+      const img = document.createElement('img');
+      img.src = image;
+      img.alt = 'Quizafbeelding';
+      left.appendChild(img);
+
+
+
+      const right = document.createElement('div');
+      right.className = 'quizOptions';
+
+      const optionsGrid = document.createElement('div');
+      optionsGrid.className = 'optionsGrid';
+
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'retryBtn';
+      retryBtn.textContent = retryLabel;
+      retryBtn.style.display = 'none';
+      retryBtn.addEventListener('click', () => {
+        woordtrainerImageQuiz.init();
+      });
+
+      const successMsg = document.createElement('div');
+      successMsg.className = 'successMsg';
+      successMsg.textContent = 'dit is correct!';
+      successMsg.style.display = 'none';
+
+      // Randomize the order of options
+      const shuffledOptions = [...opties].sort(() => Math.random() - 0.5);
+
+      shuffledOptions.forEach(option => {
+        const btn = document.createElement('button');
+        btn.className = 'optionBtn';
+        btn.textContent = option;
+
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('disabled')) return;
+
+          const allBtns = document.querySelectorAll('.optionBtn');
+          allBtns.forEach(b => b.classList.add('disabled'));
+
+          if (option === correct) {
+            btn.classList.add('correct');
+
+            playSuccess();
+            launchConfetti();
+            successMsg.style.display = 'block'; // 👈 show success message
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerImageQuiz', correct, true);
+          } else {
+            btn.classList.add('wrong');
+            playError();
+            retryBtn.style.display = 'inline-block';
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerImageQuiz', correct, false, option);
+          }
+        });
+
+        optionsGrid.appendChild(btn);
+      });
+
+      right.appendChild(optionsGrid);
+      layout.appendChild(left);
+      layout.appendChild(right);
+      container.appendChild(layout);
+      // Centered status under layout
+      const centerBar = document.createElement('div');
+      centerBar.className = 'centerBar';
+      centerBar.appendChild(successMsg);
+      centerBar.appendChild(retryBtn);
+      container.appendChild(centerBar);
+    }
+  };
+
+  woordtrainerImageQuiz.init();
+</script>
+
+<div id="quizWrapper" class="general-wrapper">
+  <div class="introText">Kies het juiste woord bij de afbeelding.</div>
+  <div class="quizContainer"></div>
+</div>
+
+<style>
+  #quizWrapper {
+    font-family: "Segoe UI", sans-serif;
+    
+    padding: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #333;
+  }
+
+  .quizContainer {
+    margin-top: 1.5rem;
+  }
+
+  .quizQuestion {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    color: #222;
+  }
+
+  .quizLayout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+
+  .quizImage {
+    width: 50%;
+    /* height: 330px; */
+    /* max-width: 350px; */
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .quizImage img {
+    height: 325px;
+    border-radius: 20px;
+    width: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .quizOptions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .optionsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-content: center;
+    height: 100%;
+  }
+
+  .optionBtn {
+    padding: 4.25rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    color: #444;
+    background-color: transparent !important;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: none;
+    text-transform: lowercase;
+  }
+
+  .optionBtn:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+
+  .optionBtn.correct {
+    background-color: #28a745 !important;
+    border-color: #1e7e34 !important;
+    color: white !important;
+    font-weight: bold;
+    transform: scale(1.05);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .optionBtn.correct::after {
+    font-size: 1.2rem;
+  }
+
+  .optionBtn.wrong {
+    background-color: #dc3545 !important;
+    border-color: #bd2130 !important;
+    color: white !important;
+    font-weight: bold;
+    transform: scale(1.05);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .optionBtn.wrong::after {
+    font-size: 1.2rem;
+  }
+
+  .successMsg {
+    margin-top: 2rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #28a745;
+    text-align: center;
+  }
+
+  .retryBtn {
+    margin-top: 2rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: #0077cc;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-block;
+  }
+
+  .retryBtn:hover {
+    background-color: #005fa3;
+  }
+
+  /* Center bar for success + retry */
+  .centerBar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .quizLayout {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .optionBtn {
+      padding: 1.5rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .quizImage,
+    .quizOptions {
+      width: 100%;
+    }
+
+    .quizImage {
+      margin-bottom: 1.5rem;
+      margin-top: 50px;
+    }
+
+    .quizImage img {
+      height: 210px;
+    }
+
+    .optionsGrid {
+      grid-template-columns: 1fr;
+      /* Stack buttons vertically on mobile */
+    }
+  }
+</style>

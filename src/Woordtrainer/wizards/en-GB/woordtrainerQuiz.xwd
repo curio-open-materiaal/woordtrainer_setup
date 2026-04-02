@@ -1,0 +1,32 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <woordtrainerQuiz><![CDATA[
+        <woordtrainerQuiz name="Woordtrainer Quiz"
+          woordItemText="Welke vrucht zie je?"
+          woordItemOptions="appel|peer|banaan|sinaasappel"
+          woordItemCorrect="appel"
+          woordItemImageHtml="&lt;img src='media/apple.jpg' /&gt;"
+        />
+      ]]></woordtrainerQuiz>
+    </newNodes>
+  </pageWizard>
+
+  <woordtrainerQuiz
+    menu="Woordtrainer"
+    menuItem="Woordtrainer Quiz"
+    hint="Toon één quizvraag waarbij een woord gekozen moet worden bij een afbeelding."
+    icon="icLayers"
+    thumb="thumbs/hotspotImage.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+
+    <woordItemText label="Vraag / Instructie" type="TextArea" height="60"/>
+    <woordItemOptions label="Woorden (| gescheiden)" type="TextInput"/>
+    <woordItemCorrect label="Correcte antwoord" type="TextInput"/>
+    <img label="Afbeelding" type="media" defaultValue="" placeholder="Selecteer een afbeelding" optional="true"/>
+    <woordItemImageHtml label="Afbeelding of andere content (HTML)" type="TextArea"/>
+
+  </woordtrainerQuiz>
+</wizard>

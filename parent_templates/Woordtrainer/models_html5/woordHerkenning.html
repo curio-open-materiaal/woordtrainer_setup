@@ -1,0 +1,287 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+  var woordHerkenning = new function () {
+    let currentIndex = 0;
+    let items = [];
+    let score = 0;
+
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+      const wrapper = document.getElementById('whwrapper');
+      if (!wrapper) return;
+
+      const intro = x_currentPageXML.getAttribute('text') || '';
+      wrapper.querySelector('.introText').innerHTML = x_addLineBreaks(intro);
+
+      items = Array.from(x_currentPageXML.getElementsByTagName('woordItem'));
+      if (items.length === 0) {
+        wrapper.querySelector('.quizContainer').innerHTML = '<p style="color:red;">Geen woord-items gevonden.</p>';
+        return;
+      }
+
+      const topBtn = document.getElementById('x_nextBtn_top');
+      if (topBtn) {
+        topBtn.disabled = true;
+        topBtn.classList.add('ui-state-disabled');
+        topBtn.setAttribute('aria-disabled', 'true');
+      }
+
+      currentIndex = 0;
+      score = 0;
+      renderItem();
+    };
+
+    function renderItem() {
+      const wrapper = document.getElementById('whwrapper');
+      const container = wrapper.querySelector('.quizContainer');
+      container.innerHTML = '';
+
+      const itemXML = items[currentIndex];
+      const audio = itemXML.getAttribute('audio') || '';
+      const correct = itemXML.getAttribute('correct')?.trim();
+      const optionsRaw = Array.from(itemXML.getElementsByTagName('option')).map(x => x.textContent.trim());
+
+      if (!audio || !correct || optionsRaw.length === 0) {
+        container.innerHTML = `<p style="color:red;">Fout in item ${currentIndex + 1}. Controleer audio en opties.</p>`;
+        return;
+      }
+
+      const shuffled = [...optionsRaw].sort(() => Math.random() - 0.5);
+      let wrongAttempts = [];
+
+      const itemBlock = document.createElement('div');
+      itemBlock.className = 'whItemBlock';
+      itemBlock.innerHTML = `
+        <audio controls src="${audio}"></audio>
+        <div class="options"></div>
+        <div class="feedback"></div>
+        <div class="btnHolder"></div>
+      `;
+
+      const optionsDiv = itemBlock.querySelector('.options');
+      const feedback = itemBlock.querySelector('.feedback');
+      const btnHolder = itemBlock.querySelector('.btnHolder');
+
+      shuffled.forEach(word => {
+        const div = document.createElement('div');
+        div.className = 'wordBox';
+        div.innerText = word;
+        div.onclick = () => {
+          if (div.classList.contains('disabled')) return;
+
+          const isCorrect = word === correct;
+          feedback.innerHTML = `
+            <div class="feedback-message">
+              <div class="feedback-content">
+                <span class="feedback-text" style="color: ${isCorrect ? '#00aa00' : '#cc0000'};">${isCorrect ? 'goed gedaan!' : 'Helaas, probeer het opnieuw.'}</span>
+              </div>
+            </div>
+          `;
+
+          if (isCorrect) {
+            score++;
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+              setTimeout(() => confetti.reset(), 1000);
+            }
+            disableOptions(optionsDiv);
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordHerkenning', correct, true);
+            showNextButton(btnHolder);
+          } else {
+            div.classList.add('wrong');
+            wrongAttempts.push({ itemIndex: currentIndex, chosen: word, correct });
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordHerkenning', correct, false, word);
+          }
+        };
+        optionsDiv.appendChild(div);
+      });
+
+      container.appendChild(itemBlock);
+    }
+
+    function disableOptions(container) {
+      container.querySelectorAll('.wordBox').forEach(opt => {
+        opt.classList.add('disabled');
+        opt.style.pointerEvents = 'none';
+      });
+    }
+
+    function showNextButton(holder) {
+      const btn = document.createElement('button');
+      btn.className = 'nextButton';
+      btn.innerText = currentIndex < items.length - 1 ? 'Volgende' : 'Bekijk resultaat';
+      btn.onclick = () => {
+        currentIndex++;
+        if (currentIndex < items.length) {
+          renderItem();
+        } else {
+          showFinalFeedback();
+        }
+      };
+      holder.appendChild(btn);
+    }
+
+    function showFinalFeedback() {
+      const wrapper = document.getElementById('whwrapper');
+      const container = wrapper.querySelector('.quizContainer');
+      const success = score === items.length;
+
+      container.innerHTML = `
+        <div class="finalFeedback">
+          <div class="feedback-message">
+            <div class="feedback-content">
+              <span class="feedback-text">
+                ${success
+                  ? "Fantastisch! Je hebt alles goed 🎉"
+                  : `Je had ${score} van de ${items.length} goed. Probeer het opnieuw.`
+                }
+              </span>
+            </div>
+          </div>
+          <button class="resetButton" onclick="woordHerkenning.init()">Opnieuw</button>
+        </div>
+      `;
+
+      const topBtn = document.getElementById('x_nextBtn_top');
+      if (topBtn) {
+        topBtn.disabled = !success;
+        topBtn.classList.toggle('ui-state-disabled', !success);
+        topBtn.setAttribute('aria-disabled', !success);
+      }
+    }
+  };
+
+  woordHerkenning.init();
+</script>
+
+<style>
+  #whwrapper .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+    font-family: "Segoe UI", sans-serif;
+  }
+
+  #whwrapper .quizContainer {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  #whwrapper .whItemBlock {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #ddd;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  #whwrapper audio {
+    display: block;
+    margin: 0 auto;
+  }
+
+  #whwrapper .options {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 1.2rem;
+  }
+
+  #whwrapper .wordBox {
+    background: #f9f9f9;
+    border: 2px solid #ccc;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+  }
+
+  #whwrapper .wordBox:hover {
+    background-color: #eef;
+    transform: scale(1.05);
+  }
+
+  #whwrapper .wordBox.wrong {
+    border-color: #cc0000;
+    background-color: #fee;
+  }
+
+  #whwrapper .wordBox.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  #whwrapper .feedback {
+    margin-top: 1em;
+    font-weight: bold;
+    text-align: center;
+    font-size: 1.2em;
+    min-height: 1.5em;
+  }
+
+  #whwrapper .btnHolder {
+    margin-top: 1.5em;
+    text-align: center;
+  }
+
+  #whwrapper .nextButton,
+  #whwrapper .resetButton {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #0077cc;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  #whwrapper .nextButton:hover,
+  #whwrapper .resetButton:hover {
+    background-color: #005fa3;
+  }
+
+  #whwrapper .finalFeedback {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-top: 2rem;
+  }
+
+  .feedback-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+
+  .feedback-content {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    
+    border: 2px solid transparent;
+  }
+
+  .feedback-text {
+    font-weight: 600;
+    font-size: 1.1em;
+  }
+</style>
+
+<div id="whwrapper">
+  <div class="introText"></div>
+  <div class="quizContainer"></div>
+</div>

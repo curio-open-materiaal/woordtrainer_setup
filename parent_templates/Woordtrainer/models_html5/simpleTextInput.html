@@ -1,0 +1,83 @@
+<script type="text/javascript">
+    var simpleTextInput = new function () {
+        this.pageChanged = function () {}
+        this.sizeChanged = function () {}
+    
+        this.init = function () {
+            let html = `
+                <div style="padding: 2em; font-family: sans-serif;">
+                    <p><strong>Vraag:</strong> Hoe zeg je 'cat' in het Nederlands?</p>
+                    <input type="text" id="stiInput" />
+                    <button onclick="simpleTextInput.checkAnswer()">Check</button>
+                    <div id="stiFeedback"></div>
+                </div>
+            `;
+            $("#pageContents").html(html);
+            this.correctAnswer = "kat";
+            x_pageLoaded();
+        }
+    
+        this.checkAnswer = function () {
+            let val = document.getElementById("stiInput").value.trim().toLowerCase();
+            let feedback = document.getElementById("stiFeedback");
+            if (val === this.correctAnswer) {
+                if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                    XENITH.FEEDBACK.showSuccess({
+                        container: document.getElementById('x_pageDiv'),
+                        message: 'goed gedaan!',
+                        showConfetti: true,
+                        playSound: true
+                    });
+                } else {
+                    feedback.innerHTML = `
+                        <div class="feedback-message">
+                            <div class="feedback-content">
+                                <span class="feedback-text" style="color: green;">
+                                    goed gedaan!
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                feedback.innerHTML = `
+                    <div class="feedback-message">
+                        <div class="feedback-content">
+                            <span class="feedback-text" style="color: red;">
+                                Helaas, probeer opnieuw.
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    simpleTextInput.init();
+    </script>
+
+    <style>
+        .feedback-message {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .feedback-content {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            
+            border: 2px solid transparent;
+        }
+
+        .feedback-text {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+    </style>
+    
+    <div id="pageContents"></div>
+    

@@ -1,0 +1,702 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+    var woordMemory = new function () {
+        let pairs = [];
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let isFlipping = false;
+
+        // Sound function for correct answers
+        function playSuccessSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+            }
+        }
+
+        // Sound function for wrong answers
+        function playErrorSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.1);
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            } catch (e) {
+            }
+        }
+
+        // Strip HTML tags
+        function stripHtml(html) {
+            if (!html) return '';
+            const tmp = document.createElement('DIV');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        }
+
+        // Get words and meanings from woordenLijstExtended / woordenLijstCustom pages
+        function getWordsFromProject() {
+            // Eerst bepalen of er überhaupt een Woordenlijst Custom-pagina in het project zit
+            let hasCustomWordPage = false;
+            try {
+                if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+                    for (let i = 0; i < x_pages.length; i++) {
+                        const pageXML = x_pages[i];
+                        if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+                        const tagName = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+                        if (tagName === 'woordenlijstcustom' || tagName === 'woordenlijst custom') {
+                            hasCustomWordPage = true;
+                            break;
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error('woordMemory: error while detecting custom word pages:', e);
+            }
+
+            // Alleen als er echt een Woordenlijst Custom-pagina is, mag de custom word set gebruikt worden
+            if (hasCustomWordPage) {
+                console.log('woordMemory: Custom word page detected, checking custom word set...');
+                if (typeof window.wtGetCustomWordSet === 'function') {
+                    try {
+                        const customSet = window.wtGetCustomWordSet();
+                        console.log('woordMemory: customSet from wtGetCustomWordSet:', customSet);
+                        console.log('woordMemory: customSet type:', typeof customSet);
+                        console.log('woordMemory: customSet isArray:', Array.isArray(customSet));
+                        
+                        if (customSet && Array.isArray(customSet) && customSet.length > 0) {
+                            console.log('woordMemory: customSet length:', customSet.length);
+                            console.log('woordMemory: First word example:', customSet[0]);
+                            
+                            // Convert to pairs format - gebruik betekenis indien beschikbaar, anders het woord zelf
+                            const pairs = [];
+                            customSet.forEach((w, index) => {
+                                const word = (w.word || w || '').trim();
+                                let meaning = (w.betekenis || w.meaning || '').trim();
+
+                                // Als er geen betekenis is opgeslagen, gebruik dan het woord zelf als tekst op de betekenis-kaart
+                                if (!meaning || meaning.length === 0) {
+                                    meaning = word;
+                                }
+
+                                console.log(`woordMemory: Word ${index}:`, { word, meaning, fullObject: w });
+                                if (word && word.length > 0) {
+                                    pairs.push({ word: word, meaning: meaning });
+                                }
+                            });
+                            console.log('woordMemory: pairs after filtering:', pairs);
+                            if (pairs.length > 0) {
+                                console.log('woordMemory: Returning', pairs.length, 'pairs from custom word set');
+                                return pairs;
+                            } else {
+                                console.warn('woordMemory: Custom word set has', customSet.length, 'words but none passed the filter (missing word or betekenis)');
+                            }
+                        } else {
+                            console.log('woordMemory: No custom word set found or empty, customSet:', customSet);
+                        }
+                    } catch(e) {
+                        console.error('woordMemory: Error getting custom word set:', e);
+                        console.error('woordMemory: Error stack:', e.stack);
+                    }
+                } else {
+                    console.log('woordMemory: wtGetCustomWordSet function not available (even though a custom word page exists)');
+                    // Try direct localStorage access as fallback
+                    try {
+                        const saved = localStorage.getItem('wt:customWordSet');
+                        if (saved) {
+                            const customSet = JSON.parse(saved);
+                            console.log('woordMemory: Fallback - got customSet from localStorage directly:', customSet);
+                            if (customSet && Array.isArray(customSet) && customSet.length > 0) {
+                                const pairs = [];
+                                customSet.forEach((w, index) => {
+                                    const word = (w.word || w || '').trim();
+                                    let meaning = (w.betekenis || w.meaning || '').trim();
+                                    if (!meaning || meaning.length === 0) {
+                                        meaning = word;
+                                    }
+                                    if (word && word.length > 0) {
+                                        pairs.push({ word: word, meaning: meaning });
+                                    }
+                                });
+                                if (pairs.length > 0) {
+                                    console.log('woordMemory: Fallback - Returning', pairs.length, 'pairs from localStorage');
+                                    return pairs;
+                                }
+                            }
+                        }
+                    } catch(e) {
+                        console.error('woordMemory: Fallback error:', e);
+                    }
+                }
+            }
+            
+            // Anders (of als custom set niets bruikbaars oplevert): woorden uit woordenLijstExtended / woordenLijstCustom ophalen
+            const allPairs = [];
+            
+            try {
+                // Loop through all pages in the project
+                if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+                    for (let i = 0; i < x_pages.length; i++) {
+                        const pageXML = x_pages[i];
+                        if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+                        
+                        // Check if this is a woordenLijstExtended or woordenLijstCustom page
+                        const tagName = pageXML.tagName || (pageXML.nodeName || '').toLowerCase();
+                        if (tagName === 'woordenlijstextended' || tagName === 'woordenLijstExtended' ||
+                            tagName === 'woordenlijstcustom' || tagName === 'woordenlijst custom') {
+                            const wordListText = pageXML.getAttribute('wordListText') || '';
+                            
+                            if (!wordListText || wordListText.trim() === '') continue;
+                            
+                            // Parse the text format (same as woordenLijstExtended.html)
+                            let wordBlocks = wordListText.split(/\n\s*\n/);
+                            
+                            if (wordBlocks.length === 1) {
+                                const allLines = wordListText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                wordBlocks = [];
+                                let currentBlock = [];
+                                
+                                allLines.forEach((line) => {
+                                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                                    const isNewWord = wordMatch && !line.toLowerCase().startsWith('contextzin');
+                                    
+                                    if (isNewWord && currentBlock.length > 0) {
+                                        wordBlocks.push(currentBlock.join('\n'));
+                                        currentBlock = [line];
+                                    } else {
+                                        currentBlock.push(line);
+                                    }
+                                });
+                                
+                                if (currentBlock.length > 0) {
+                                    wordBlocks.push(currentBlock.join('\n'));
+                                }
+                            }
+                            
+                            wordBlocks.forEach(block => {
+                                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                if (lines.length === 0) return;
+                                
+                                let word = '';
+                                let betekenis = '';
+                                
+                                lines.forEach(line => {
+                                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                                    if (wordMatch && !line.toLowerCase().startsWith('contextzin')) {
+                                        word = stripHtml(wordMatch[1].trim());
+                                        betekenis = stripHtml(wordMatch[2].trim());
+                                    }
+                                });
+                                
+                                if (word && betekenis) {
+                                    allPairs.push({ word: word, meaning: betekenis });
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error getting words from project:', e);
+            }
+            
+            return allPairs;
+        }
+
+        this.init = function () {
+            document.getElementById('textHolder').innerHTML = x_addLineBreaks(x_currentPageXML.getAttribute('text') || '');
+
+            // Build standard title structure like other models
+            try {
+                const introTextEl = document.querySelector('.introText');
+                if (introTextEl) {
+                    const baseSubtitle = (x_currentPageXML.getAttribute('text') || '').trim();
+                    const defaultInstr = 'Koppel elk woord aan de betekenis door de kaarten om te draaien.';
+                    const intro = baseSubtitle.length > 0 ? baseSubtitle : defaultInstr;
+                    introTextEl.innerHTML = x_addLineBreaks(intro);
+                    // Add translation under intro text
+                    if (typeof x_addTranslationUnder === 'function') {
+                        x_addTranslationUnder(introTextEl, intro);
+                    }
+                }
+            } catch(e) {}
+
+            // Get words from woordenLijstExtended pages
+            const allPairs = getWordsFromProject();
+            
+            if (allPairs.length === 0) {
+                const container = document.getElementById('memoryGame');
+                if (container) {
+                    // Check if custom word set exists but is empty
+                    const hasCustomSet = typeof window.wtGetCustomWordSet === 'function' && window.wtGetCustomWordSet() !== null;
+                    let errorMsg = '<p style="text-align:center;color:#666;padding:2em;"><em>';
+                    if (hasCustomSet) {
+                        errorMsg += 'Geen woorden gevonden in je geselecteerde woordenlijst. Selecteer eerst woorden via de Woordenlijst Custom pagina.';
+                    } else {
+                        errorMsg += 'Geen woorden gevonden. Voeg eerst een Woordenlijst Extended of Woordenlijst Custom pagina toe aan je project.';
+                    }
+                    errorMsg += '</em></p>';
+                    container.innerHTML = errorMsg;
+                }
+                x_pageLoaded();
+                return;
+            }
+
+            // Get number of pairs from XML attribute, default to 4
+            let numberOfPairs = parseInt(x_currentPageXML.getAttribute('numberOfPairs') || '4', 10);
+
+            // Interpret low values as "level" to give more kaarten:
+            // level 1 -> 3 woorden (6 kaarten)
+            // level 2 -> 4 woorden (8 kaarten)
+            // level 3 -> 5 woorden (10 kaarten)
+            if (numberOfPairs === 1) {
+                numberOfPairs = 3;
+            } else if (numberOfPairs === 2) {
+                numberOfPairs = 4;
+            } else if (numberOfPairs === 3) {
+                numberOfPairs = 5;
+            }
+
+            // Enforce a hard cap of 4 pairs (8 cards) to keep the game consistent
+            const maxPairs = Math.min(numberOfPairs, allPairs.length, 4);
+            
+            // Shuffle and limit to specified number of pairs
+            const shuffled = [...allPairs].sort(() => Math.random() - 0.5);
+            pairs = shuffled.slice(0, maxPairs);
+            
+            // Create cards: one for each word and one for each meaning
+            cards = [];
+            pairs.forEach((pair, index) => {
+                cards.push({
+                    id: 'word-' + index,
+                    content: pair.word,
+                    pairId: index,
+                    type: 'word'
+                });
+                cards.push({
+                    id: 'meaning-' + index,
+                    content: pair.meaning,
+                    pairId: index,
+                    type: 'meaning'
+                });
+            });
+
+            // Shuffle cards
+            cards = cards.sort(() => Math.random() - 0.5);
+            
+            flippedCards = [];
+            matchedPairs = 0;
+            isFlipping = false;
+
+            this.render();
+            x_pageLoaded();
+        };
+
+        this.render = function () {
+            const container = document.getElementById('memoryGame');
+            container.innerHTML = '';
+            document.getElementById('feedback').innerText = '';
+
+            // Create grid for memory cards
+            const grid = document.createElement('div');
+            grid.className = 'memoryGrid';
+            
+            // Add class for 2 pairs (4 cards) to reduce spacing
+            if (pairs.length === 2) {
+                grid.classList.add('twoPairs');
+            }
+
+            // If we have 4 pairs or more (8+ cards, level 2 and up),
+            // reduce the card size via an extra CSS class
+            if (cards.length >= 8) {
+                grid.classList.add('manyCards');
+            }
+            
+            // Set column count via class so CSS media queries can override on mobile (3 cols)
+            let columns = pairs.length;
+            if (columns > 4) columns = 4;
+            grid.classList.add('memoryGrid--cols-' + columns);
+            
+            cards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'memoryCard';
+                cardElement.dataset.cardId = card.id;
+                cardElement.dataset.pairId = card.pairId;
+                cardElement.dataset.type = card.type;
+                
+                const cardInner = document.createElement('div');
+                cardInner.className = 'memoryCardInner';
+                
+                const cardFront = document.createElement('div');
+                cardFront.className = 'memoryCardFront';
+                cardFront.innerHTML = '<i class="fa fa-question"></i>';
+                
+                const cardBack = document.createElement('div');
+                cardBack.className = 'memoryCardBack';
+                cardBack.textContent = card.content;
+                
+                cardInner.appendChild(cardFront);
+                cardInner.appendChild(cardBack);
+                cardElement.appendChild(cardInner);
+                
+                cardElement.addEventListener('click', () => flipCard(cardElement));
+                
+                grid.appendChild(cardElement);
+            });
+            
+            container.appendChild(grid);
+        };
+
+        function flipCard(cardElement) {
+            if (isFlipping) return;
+            
+            const cardId = cardElement.dataset.cardId;
+            const pairId = cardElement.dataset.pairId;
+            const type = cardElement.dataset.type;
+            
+            // Don't flip if already flipped or matched
+            if (cardElement.classList.contains('flipped') || cardElement.classList.contains('matched')) {
+                return;
+            }
+            
+            // Don't flip if already have 2 cards flipped
+            if (flippedCards.length >= 2) {
+                return;
+            }
+            
+            // Flip the card
+            cardElement.classList.add('flipped');
+            flippedCards.push({ element: cardElement, pairId: pairId, type: type });
+            
+            // If we have 2 cards flipped, check for match
+            if (flippedCards.length === 2) {
+                isFlipping = true;
+                setTimeout(() => {
+                    checkMatch();
+                    isFlipping = false;
+                }, 1000);
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+            
+            // Check if they're a matching pair (same pairId, different types)
+            if (card1.pairId === card2.pairId && card1.type !== card2.type) {
+                // Match!
+                card1.element.classList.add('matched');
+                card2.element.classList.add('matched');
+                
+                playSuccessSound();
+                confetti({
+                    particleCount: 50,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                setTimeout(() => confetti.reset(), 1000);
+                
+                matchedPairs++;
+                
+                // Check if all pairs are matched
+                if (matchedPairs === pairs.length) {
+                    if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                        XENITH.FEEDBACK.showSuccess({
+                            container: document.getElementById('x_pageDiv'),
+                            message: 'goed gedaan!',
+                            showConfetti: true,
+                            playSound: true
+                        });
+                    } else {
+                        // Fallback
+                        const feedback = document.getElementById('feedback');
+                        feedback.innerHTML = '<span style="color: #28a745; font-size: 1.1rem; font-weight: 600;">goed gedaan!</span>';
+                        try {
+                            confetti({
+                                particleCount: 120,
+                                spread: 70,
+                                origin: { y: 0.6 }
+                            });
+                            setTimeout(() => confetti.reset(), 1000);
+                        } catch(e) {}
+                    }
+                }
+            } else {
+                // No match - flip back
+                playErrorSound();
+                setTimeout(() => {
+                    card1.element.classList.remove('flipped');
+                    card2.element.classList.remove('flipped');
+                }, 1000);
+            }
+            
+            flippedCards = [];
+        }
+    };
+
+    woordMemory.init();
+</script>
+
+<style>
+    /* Page container: prevent horizontal overflow on mobile */
+    #pageContents {
+        box-sizing: border-box;
+        max-width: 100%;
+        overflow-x: hidden;
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+    }
+
+    #memoryGame {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 0.5em;
+        margin-top: 0;
+        box-sizing: border-box;
+    }
+
+    .memoryGrid {
+        display: grid;
+        gap: 0.6rem;
+        margin: 1em auto;
+        max-width: 500px;
+        width: 100%;
+        justify-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+
+    /* Column count by class (desktop); mobile overrides in media queries */
+    .memoryGrid.memoryGrid--cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .memoryGrid.memoryGrid--cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .memoryGrid.memoryGrid--cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+    /* Reduce gap for 2 pairs (4 cards) */
+    .memoryGrid.twoPairs {
+        gap: 0.3rem;
+        max-width: 600px;
+    }
+
+    /* When there are 8 or more cards (level 2 and up),
+       make the memory cards smaller so everything fits nicely */
+    .memoryGrid.manyCards .memoryCard {
+        width: 120px;
+        max-width: 120px;
+    }
+
+    .memoryGrid.manyCards .memoryCardBack {
+        font-size: 0.85rem;
+    }
+
+    .memoryCard {
+        aspect-ratio: 1;
+        perspective: 1000px;
+        cursor: pointer;
+        width: 100%;
+        max-width: 160px;
+        min-width: 0;
+    }
+
+    .memoryCardInner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+    }
+
+    .memoryCard.flipped .memoryCardInner {
+        transform: rotateY(180deg);
+    }
+
+    .memoryCard.matched .memoryCardInner {
+        transform: rotateY(180deg);
+    }
+
+    .memoryCardFront,
+    .memoryCardBack {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 2px solid #ccc;
+        box-sizing: border-box;
+        padding: 0.5rem;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    /* Closed state – same neutral look as flashcards: white card with grey border */
+    .memoryCardFront {
+        background: #ffffff;
+        color: #888;
+        font-size: 1.6rem;
+    }
+
+    /* Open state – same styling as flashcard back: purple border + light purple background */
+    .memoryCardBack {
+        background: #F7F2FD;
+        color: #222;
+        border-color: #7E1AE3;
+        transform: rotateY(180deg);
+        font-size: 1rem;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .memoryCard.matched .memoryCardBack {
+        background: #28a745;
+        color: white;
+        border-color: #1e7e34;
+    }
+
+    /* Subtle hover for closed cards: keep grey border, just a light grey background */
+    .memoryCard:hover:not(.flipped):not(.matched) .memoryCardFront {
+        background: #f5f5f5;
+        border-color: #ccc;
+    }
+
+    #feedback {
+        margin-top: 1.5em;
+        text-align: center;
+        font-size: 1.1rem;
+    }
+
+    .introText {
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+    }
+    .intro-translation {
+        text-align: center !important;
+    }
+
+    .feedback-message {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.5rem;
+    }
+
+    .feedback-content {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        border: 2px solid transparent;
+    }
+
+    .feedback-text {
+        font-weight: 600;
+        font-size: 1.1rem;
+        font-size: 0.85em;
+    }
+
+    /* Tablet & mobile: 3 columns, fit in viewport, clear menu bar */
+    @media (max-width: 768px) {
+        #pageContents {
+            padding-top: 0.25em;
+        }
+
+        .introText {
+            margin-top: 60px;
+            margin-bottom: 0.4em;
+            font-size: 1rem;
+        }
+
+        .memoryGrid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.5rem;
+            margin-top: 0.5em;
+            max-width: 100%;
+        }
+
+        .memoryCard {
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .memoryGrid.manyCards .memoryCard {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .memoryCardFront {
+            font-size: 1.4rem;
+        }
+
+        .memoryCardBack {
+            font-size: 0.8rem;
+            padding: 0.35rem;
+        }
+    }
+
+    /* Small mobile: keep 3 columns, tighter layout */
+    @media (max-width: 480px) {
+        #pageContents {
+            padding-left: 0.35em;
+            padding-right: 0.35em;
+        }
+
+        .introText {
+            margin-top: 60px;
+        }
+
+        #memoryGame {
+            padding-left: 0.25em;
+            padding-right: 0.25em;
+            margin-bottom: 90px;
+        }
+
+        .memoryGrid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.4rem;
+            margin-top: 0.35em;
+        }
+
+        .memoryCardFront {
+            font-size: 1.2rem;
+        }
+
+        .memoryCardBack {
+            font-size: 0.7rem;
+            padding: 0.25rem;
+        }
+    }
+</style>
+
+<div id="pageContents">
+    <div class="introText"></div>
+    <div id="textHolder" style="display:none;"></div>
+    <div id="memoryGame"></div>
+    <div id="feedback"></div>
+</div>
+

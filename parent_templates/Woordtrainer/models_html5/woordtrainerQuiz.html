@@ -1,0 +1,524 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<script type="text/javascript">
+  var woordtrainerQuiz = new function () {
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('quizWrapper');
+      if (!wrapper) return;
+
+      const intro = 'Welk woord hoort hier?';
+      const introTextEl = wrapper.querySelector('.introText');
+      introTextEl.innerHTML = intro;
+      
+      // Add translation under intro text
+      if (typeof x_addTranslationUnder === 'function') {
+        x_addTranslationUnder(introTextEl, intro);
+      }
+
+      const vraag = x_currentPageXML.getAttribute('woordItemText') || '';
+      const opties = (x_currentPageXML.getAttribute('woordItemOptions') || '').split('|');
+      const correct = x_currentPageXML.getAttribute('woordItemCorrect') || '';
+      const image = x_currentPageXML.getAttribute('img') || '';
+      const imageHtml = x_currentPageXML.getAttribute('woordItemImageHtml') || '';
+
+      if (opties.length < 2 || !correct || (!image && !imageHtml)) {
+        wrapper.querySelector('.quizContainer').innerHTML = '<p style="color:red;">Onvolledige quizgegevens. Voeg een afbeelding of tekst toe.</p>';
+        return;
+      }
+
+      // Ensure feedback bar exists (fixed full-width bar that slides up from below)
+      if (!document.getElementById('quizFeedbackBar')) {
+        const fb = document.createElement('div');
+        fb.id = 'quizFeedbackBar';
+        fb.className = 'feedbackBar';
+        fb.innerHTML = '<div class="feedbackInner"></div>';
+        document.body.appendChild(fb);
+      }
+
+      // Helper to show the fixed feedback bar
+      function showFeedback(message, type, duration) {
+        try {
+          const bar = document.getElementById('quizFeedbackBar');
+          if (!bar) return;
+          const inner = bar.querySelector('.feedbackInner');
+          inner.textContent = message;
+          bar.classList.remove('success', 'error');
+          bar.classList.add(type === 'success' ? 'success' : 'error');
+          // trigger animation (slide up)
+          requestAnimationFrame(() => bar.classList.add('show'));
+          if (duration && duration > 0) {
+            clearTimeout(bar._hideTimeout);
+            bar._hideTimeout = setTimeout(() => {
+              bar.classList.remove('show');
+            }, duration);
+          }
+        } catch (e) {}
+      }
+
+      renderQuestion(vraag, opties, correct, image, imageHtml);
+    };
+
+    function playSuccess() {
+      try {
+        // Create a simple success sound using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {
+      }
+    }
+
+    function playError() {
+      try {
+        // Create a simple error sound using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+      } catch (e) {
+      }
+    }
+
+    function launchConfetti() {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      setTimeout(() => confetti.reset(), 1000);
+    }
+
+    function renderQuestion(vraag, opties, correct, image, imageHtml) {
+      const container = document.querySelector('.quizContainer');
+      container.innerHTML = '';
+
+      // Only show quizQuestion if vraag is different from introText or not empty
+      // Since introText already shows "Welk woord hoort hier?", we don't need to show it again
+      const layout = document.createElement('div');
+      layout.className = 'quizLayout';
+
+      const left = document.createElement('div');
+      left.className = 'quizImage';
+      
+      // Add class based on what content is present
+      if (image && imageHtml) {
+        left.classList.add('hasBoth');
+      } else if (image) {
+        left.classList.add('hasImage');
+      } else if (imageHtml) {
+        left.classList.add('hasText');
+      }
+      
+      // Handle image
+      if (image) {
+        const img = document.createElement('img');
+        img.src = image;
+        img.alt = 'Quizafbeelding';
+        left.appendChild(img);
+      }
+      
+      // Handle HTML/text content
+      if (imageHtml) {
+        const htmlContent = document.createElement('div');
+        htmlContent.className = 'quizTextContent';
+        htmlContent.innerHTML = imageHtml;
+        left.appendChild(htmlContent);
+      }
+
+      const right = document.createElement('div');
+      right.className = 'quizOptions';
+
+      const optionsGrid = document.createElement('div');
+      optionsGrid.className = 'optionsGrid';
+
+      const successMsg = document.createElement('div');
+      successMsg.className = 'successMsg';
+      successMsg.textContent = 'dit is correct!';
+      successMsg.style.display = 'none';
+
+      // Randomize the order of options
+      const shuffledOptions = [...opties].sort(() => Math.random() - 0.5);
+
+      shuffledOptions.forEach(option => {
+        const btn = document.createElement('button');
+        btn.className = 'optionBtn';
+        btn.textContent = option;
+
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('disabled')) return;
+
+          if (option === correct) {
+            btn.classList.add('correct');
+
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+              // also show our full-width sliding feedback bar
+              showFeedback('Goed gedaan!', 'success', 2500);
+            } else {
+              playSuccess();
+              launchConfetti();
+              successMsg.style.display = 'block';
+              showFeedback('Goed gedaan!', 'success', 2500);
+            }
+            // lock all buttons after correct
+            const allBtns = document.querySelectorAll('.optionBtn');
+            allBtns.forEach(b => b.classList.add('disabled'));
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerQuiz', correct, true);
+          } else {
+            btn.classList.add('wrong');
+            playError();
+            // briefly show red, then allow another try
+            setTimeout(() => {
+              btn.classList.remove('wrong');
+            }, 700);
+            // show a brief try-again bar sliding up
+            showFeedback('Probeer nog eens', 'error', 1200);
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerQuiz', correct, false, option);
+          }
+        });
+
+        optionsGrid.appendChild(btn);
+      });
+
+      right.appendChild(optionsGrid);
+      layout.appendChild(left);
+      layout.appendChild(right);
+      container.appendChild(layout);
+      // Centered status under layout
+      const centerBar = document.createElement('div');
+      centerBar.className = 'centerBar';
+      centerBar.appendChild(successMsg);
+      container.appendChild(centerBar);
+    }
+  };
+
+  woordtrainerQuiz.init();
+</script>
+
+<div id="quizWrapper" class="general-wrapper">
+  <div class="introText"></div>
+  <div class="quizContainer"></div>
+</div>
+
+<style>
+
+    .quizContainer {
+    margin-top: 25px !important;
+  }
+
+  #quizWrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 2rem;
+    
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+  }
+
+
+
+  .quizQuestion {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    color: #222;
+  }
+
+  .quizLayout {
+    display: flex;
+    gap: 2rem;
+    align-items: stretch;
+  }
+
+  .quizImage {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    width: 50%;
+    height: 330px;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  /* Only image: make it as large as possible */
+  .quizImage.hasImage img {
+    max-height: 100%;
+    max-width: 100%;
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Only text: make it fit nicely */
+  .quizImage.hasText .quizTextContent {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Both image and text: share the space */
+  .quizImage.hasBoth {
+    justify-content: space-around;
+  }
+
+  .quizImage.hasBoth img {
+    max-height: 50%;
+    max-width: 100%;
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .quizImage.hasBoth .quizTextContent {
+    max-height: 50%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .quizTextContent {
+    width: 100%;
+  }
+
+  .quizTextContent p {
+    font-size: 3vmin !important;
+    margin: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .quizTextContent {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 1;
+    padding: 0.5rem;
+  }
+
+  .quizTextContent p {
+    font-size: 3vmin !important;
+    margin: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Add spacing between image and text when both are present */
+  .quizImage img + .quizTextContent,
+  .quizImage .quizTextContent + img {
+    margin-top: 0.5rem;
+  }
+
+  .quizOptions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .optionsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-content: center;
+    height: 100%;
+  }
+
+  .optionBtn {
+    padding: 4.25rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    color: #444;
+    background-color: transparent !important;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: none;
+    text-transform: lowercase;
+  }
+
+  .optionBtn:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+
+/* (undo) disable hover while feedback is visible */
+
+/* disable hover while showing feedback colors */
+/* removed suppressHover behavior */
+
+  .optionBtn.correct {
+  background-color: #28a745 !important;
+  border-color: #1e7e34 !important;
+  color: white !important;
+  font-weight: bold;
+  transform: scale(1.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.optionBtn.correct::after {
+  font-size: 1.2rem;
+}
+
+.optionBtn.wrong {
+  background-color: #dc3545 !important;
+  border-color: #bd2130 !important;
+  color: white !important;
+  font-weight: bold;
+  transform: scale(1.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.optionBtn.wrong::after {
+  font-size: 1.2rem;
+}
+
+
+  .successMsg {
+    margin-top: 2rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #28a745;
+    text-align: center;
+  }
+
+  .retryBtn {
+    margin-top: 2rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background-color: #0077cc;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-block;
+  }
+
+  .retryBtn:hover {
+    background-color: #005fa3;
+  }
+
+  /* Center bar for success + retry */
+  .centerBar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .quizLayout {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .optionBtn {
+      padding: 1.5rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .quizImage,
+    .quizOptions {
+      width: 100%;
+    }
+
+    .quizImage {
+      margin-bottom: 1.5rem;
+      height: 250px;
+    }
+
+    .optionsGrid {
+      grid-template-columns: 1fr;
+      /* Stack buttons vertically on mobile */
+    }
+  }
+
+  /* Full-width fixed feedback bar that slides up from bottom */
+  .feedbackBar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: translateY(100%);
+    transition: transform 320ms cubic-bezier(.2,.9,.2,1);
+    z-index: 10050;
+    display: flex;
+    justify-content: center;
+    pointer-events: none; /* allow clicks through except inner */
+  }
+  .feedbackBar.show { transform: translateY(0%); }
+  .feedbackBar .feedbackInner {
+    pointer-events: auto;
+    width: 100%;
+    max-width: 1200px;
+    box-sizing: border-box;
+    padding: 0.9rem 1rem;
+    text-align: center;
+    font-weight: 800;
+    color: #fff;
+    border-radius: 6px 6px 0 0;
+    margin: 0 12px 12px 12px;
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.12);
+    font-size: 1.05rem;
+  }
+  .feedbackBar.success .feedbackInner { background: #28a745; }
+  .feedbackBar.error .feedbackInner { background: #dc3545; }
+  @media (max-width: 480px) {
+    .feedbackBar .feedbackInner { font-size: 1rem; padding: 0.85rem 0.9rem; margin: 0 8px 8px 8px; }
+  }
+</style>

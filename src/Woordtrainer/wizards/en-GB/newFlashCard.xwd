@@ -1,0 +1,30 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <newFlashCard><![CDATA[
+        <newFlashCard name="Nieuwe FlashCard"
+          text="Bekijk de kaart en leer het woord."
+          sideA="appel"
+          sideB="&lt;img src='media/apple.jpg' /&gt;"
+        />
+      ]]></newFlashCard>
+    </newNodes>
+  </pageWizard>
+
+  <newFlashCard
+    menu="Woordtrainer"
+    menuItem="Nieuwe FlashCard"
+    hint="Toon één kaart met een voor- en achterzijde."
+    icon="icLayers"
+    thumb="thumbs/hotspotImage.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <text label="Introductie of instructie" type="TextArea" height="100"/>
+
+    <img label="Afbeelding voorzijde" type="media" defaultValue="" placeholder="Selecteer een afbeelding" optional="true"/>
+    <sideA label="Tekst voorzijde kaart" type="TextArea" height="100" optional="true"/>
+    <sideB label="Achterzijde kaart" type="TextArea" height="100"/>
+
+  </newFlashCard>
+</wizard>

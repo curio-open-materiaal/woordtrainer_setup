@@ -1,0 +1,32 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <woordtrainerCategorize><![CDATA[
+        <woordtrainerCategorize name="Woordcategorieën"
+          text="Sleep de woorden naar de juiste categorie."
+          categorie1="Fruit:appel,peer,banaan,druif"
+          categorie2="Kleding:jas,broek,shirt,pet"
+          categorie3=""
+          categorie4=""
+        />
+      ]]></woordtrainerCategorize>
+    </newNodes>
+  </pageWizard>
+
+  <woordtrainerCategorize
+    menu="Woordtrainer"
+    menuItem="Woordcategorieën"
+    hint="Sleep woorden naar de juiste categorie. Maximaal vier categorieën."
+    icon="icLayers"
+    thumb="thumbs/dragdrop.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <text label="Introductie of instructie" type="TextArea" height="100"/>
+
+    <categorie1 label="Categorie 1 (bijv. fruit:appel,peer,banaan)" type="TextInput"/>
+    <categorie2 label="Categorie 2 (bijv. kleding:jas,broek,shirt)" type="TextInput"/>
+    <categorie3 label="Categorie 3 (optioneel)" type="TextInput"/>
+    <categorie4 label="Categorie 4 (optioneel)" type="TextInput"/>
+  </woordtrainerCategorize>
+</wizard>

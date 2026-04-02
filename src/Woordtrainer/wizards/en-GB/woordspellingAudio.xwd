@@ -1,0 +1,28 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <woordspellingAudio><![CDATA[
+        <woordspellingAudio name="woordspelling audio: "
+          text="Luister naar het woord en typ het correcte antwoord."
+          retryBtnTxt="Probeer opnieuw"
+          woord="appel"
+          woordItemText="Beluister het woord"
+          woordItemCorrect="appel"
+        />
+      ]]></woordspellingAudio>
+    </newNodes>
+  </pageWizard>
+
+  <woordspellingAudio
+    menu="Woordtrainer"
+    menuItem="Woordspelling Audio"
+    hint="Luister naar het woord en typ het correcte antwoord"
+    icon="icMic"
+    thumb="thumbs/audio.jpg"
+    remove="true">
+        <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <woord label="Woord" type="TextInput" placeholder="Het woord dat uitgesproken moet worden"/>
+    <woordItemCorrect label="Correcte antwoord" type="TextInput"/>
+  </woordspellingAudio>
+</wizard>
+

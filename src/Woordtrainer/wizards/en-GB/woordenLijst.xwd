@@ -1,0 +1,23 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="false">
+    <newNodes>
+      <woordenLijst><![CDATA[
+<woordenLijst wordListText="text here" name="Woordenlijst">
+</woordenLijst>
+      ]]></woordenLijst>
+    </newNodes>
+  </pageWizard>
+
+  <woordenLijst
+  menu="Woordtrainer"
+  menuItem="Woordenlijst"
+  hint="Toont een lijst van woorden die in deze module worden behandeld."
+  icon="icList"
+  thumb="thumbs/list.jpg"
+  remove="true">
+
+  <name label="Pagina Titel" type="TextInput" wysiwyg="true" />
+  <wordListText label="Woordenlijst" type="TextArea" height="150" placeholder="Typ hier de woorden, gescheiden door een enter" wysiwyg="true"/>
+  
+</woordenLijst>
+</wizard>

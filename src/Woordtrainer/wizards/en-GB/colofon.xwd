@@ -1,0 +1,19 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="false">
+    <newNodes>
+      <colofon><![CDATA[
+        <colofon name="colofon"
+        />
+      ]]></colofon>
+    </newNodes>
+  </pageWizard>
+
+  <colofon
+    menu="Woordtrainer"
+    menuItem="colofon"
+    hint="Colofon"
+    icon="icLayers"
+    thumb="thumbs/hotspotImage.jpg"
+    remove="true">
+  </colofon>
+</wizard>

@@ -1,0 +1,172 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+  var woordtrainerWhatWord = new function () {
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('wwWrapper');
+      if (!wrapper) return;
+
+      const intro = x_currentPageXML.getAttribute('text') || '';
+      const sentence = decodeEntities(stripTags(x_currentPageXML.getAttribute('sentence') || ''));
+      const target = decodeEntities(stripTags((x_currentPageXML.getAttribute('targetWord') || '').trim()));
+
+      wrapper.querySelector('.introText').innerHTML = x_addLineBreaks(intro);
+
+      const container = wrapper.querySelector('.wwContainer');
+      container.innerHTML = '';
+
+      // Controls row
+      const controls = document.createElement('div');
+      controls.className = 'wwControls';
+
+      const playBtn = document.createElement('button');
+      playBtn.className = 'wwPlayBtn';
+      playBtn.innerHTML = '<i class="fa fa-play"></i> beluisteren';
+      playBtn.addEventListener('click', () => {
+        try {
+          if (typeof playText === 'function') playText(sentence);
+        } catch(e) {}
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'wwInput';
+      input.placeholder = 'typ het woord';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+
+      const checkBtn = document.createElement('button');
+      checkBtn.className = 'wwCheckBtn';
+      checkBtn.textContent = 'controleer antwoord';
+
+      const feedback = document.createElement('div');
+      feedback.className = 'wwFeedback';
+
+      controls.appendChild(playBtn);
+      controls.appendChild(input);
+      controls.appendChild(checkBtn);
+      container.appendChild(controls);
+      container.appendChild(feedback);
+
+      function stripTags(s) { try { return (s || '').toString().replace(/<[^>]*>/g, ''); } catch(e) { return (s || ''); } }
+      function decodeEntities(s) {
+        try { const d = document.createElement('div'); d.innerHTML = (s || ''); return d.textContent || d.innerText || ''; } catch(e) { return (s || ''); }
+      }
+      function normalize(s) { return decodeEntities(stripTags((s || '').toString())).trim().toLowerCase(); }
+
+      function markWrongBriefly() {
+        input.classList.add('incorrect');
+        setTimeout(() => input.classList.remove('incorrect'), 600);
+      }
+
+      function handleCheck() {
+        const ok = target && normalize(input.value) === normalize(target);
+        if (ok) {
+          if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+            XENITH.FEEDBACK.showSuccess({
+              container: document.getElementById('x_pageDiv'),
+              message: 'goed gedaan!',
+              showConfetti: true,
+              playSound: true
+            });
+          } else {
+            feedback.textContent = 'goed gedaan!';
+            feedback.style.fontWeight = 'normal';
+            try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); setTimeout(() => confetti.reset(), 1000); } catch(e) {}
+          }
+          checkBtn.style.display = 'none';
+          input.classList.remove('incorrect');
+          input.classList.add('correct');
+          if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerWhatWord', target, true);
+        } else {
+          // no text feedback; brief red cue is enough
+          markWrongBriefly();
+          if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerWhatWord', target, false, input.value);
+        }
+      }
+
+      checkBtn.addEventListener('click', handleCheck);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleCheck();
+      });
+
+      x_pageLoaded();
+    };
+  };
+
+  woordtrainerWhatWord.init();
+</script>
+
+<div id="wwWrapper" class="general-wrapper">
+  <div class="introText"></div>
+  <div class="wwContainer"></div>
+</div>
+
+<style>
+  #wwWrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+  }
+ 
+   .introText p {
+     font-size: 1.2rem;
+   }
+ 
+  .wwContainer {
+    background: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    text-transform: lowercase;
+  }
+  .wwControls {
+     display: flex;
+     gap: 0.75rem;
+     align-items: center;
+     justify-content: center;
+     flex-wrap: wrap;
+     max-width: 720px;
+     margin: 0 auto;
+  }
+  .wwPlayBtn {
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    background-color: #7E1AE3;
+    color: #ffffff;
+  }
+  .wwPlayBtn:hover { background-color: #6a16c7; }
+
+  .wwCheckBtn {
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    background-color: #7E1AE3;
+    color: #ffffff;
+  }
+  .wwCheckBtn:hover { background-color: #6a16c7; }
+
+  .wwFeedback {
+    margin-top: 0.75rem;
+    font-size: 1rem;
+    color: #28a745;
+    text-align: center;
+  }
+</style>

@@ -1,0 +1,343 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+    var synonymMatch = new function () {
+        let pairs = [], leftWords = [], rightWords = [], matched = [];
+
+        // Sound function for correct answers
+        function playSuccessSound() {
+            try {
+                // Create a simple success sound using Web Audio API
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+            }
+        }
+
+        // Sound function for wrong answers
+        function playErrorSound() {
+            try {
+                // Create a simple error sound using Web Audio API
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.1);
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            } catch (e) {
+            }
+        }
+
+        this.init = function () {
+            const textAttr = x_currentPageXML.getAttribute('text') || '';
+            document.getElementById('textHolder').innerHTML = x_addLineBreaks(textAttr);
+
+            // Build standard title structure like other models
+            try {
+                const titlesHost = document.getElementById('titlesHost');
+                if (titlesHost) {
+                    let pageTitle = x_currentPageXML.getAttribute('name') || '';
+                    try { 
+                        pageTitle = pageTitle.replace(/associaties?/gi, ''); 
+                        pageTitle = pageTitle.replace(/\s{2,}/g, ' ').trim();
+                    } catch(e) {}
+                    const baseSubtitle = textAttr.trim();
+                    const defaultInstr = 'Koppel de woorden aan de juiste betekenissen';
+                    const subtitle = baseSubtitle.length > 0 ? baseSubtitle : defaultInstr;
+                    titlesHost.innerHTML = '<div class="titles">\
+                        \
+                        <div class="subtitle">' + subtitle + '</div>\
+                    </div>';
+                }
+            } catch(e) {}
+
+            const rawPairs = x_currentPageXML.getAttribute('wordPairs');
+            if (!rawPairs) return;
+
+            // Parse pairs and shuffle right column (limit to max 6 pairs)
+            pairs = rawPairs.split(',').map(pair => {
+                const [left, right] = pair.split('=').map(s => s.trim());
+                return { left, right };
+            }).slice(0, 6);
+            leftWords = [...pairs];
+            rightWords = [...pairs].sort(() => Math.random() - 0.5);
+            matched = [];
+
+            this.render();
+            x_pageLoaded();
+        };
+
+        this.render = function () {
+            const leftCol = document.getElementById('leftWords');
+            const rightCol = document.getElementById('rightWords');
+            leftCol.innerHTML = '';
+            rightCol.innerHTML = '';
+            document.getElementById('feedback').innerText = '';
+
+            leftWords.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'wordCard';
+                div.innerText = item.left;
+                
+                // Apply text-transform lowercase only when it's not a sentence (3 words or less)
+                const wordCount = item.left.trim().split(/\s+/).length;
+                if (wordCount <= 3) {
+                    div.style.textTransform = 'lowercase';
+                } else {
+                    div.style.textTransform = 'none';
+                }
+                
+                div.setAttribute('data-index', index);
+                div.onclick = () => selectLeft(index);
+                leftCol.appendChild(div);
+            });
+
+            rightWords.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'wordCard';
+                div.innerText = item.right;
+                
+                // Don't apply lowercase transformation for right words
+                div.style.textTransform = 'none';
+                
+                div.setAttribute('data-index', index);
+                div.onclick = () => selectRight(index);
+                rightCol.appendChild(div);
+            });
+
+            // Add reset button if not already there
+            const btnHolder = document.getElementById('btnHolder');
+            if (!document.getElementById('resetButton')) {
+                const btn = document.createElement('button');
+                btn.id = 'resetButton';
+                btn.innerText = "probeer opnieuw";
+                btn.onclick = () => this.init();
+                btnHolder.appendChild(btn);
+            }
+        };
+
+        let selectedLeft = null;
+        function selectLeft(index) {
+            selectedLeft = index;
+            // speak(leftWords[index].left); // Audio disabled
+            highlightSelected('leftWords', index);
+            try {
+                document.getElementById('rightWords')?.classList.add('active');
+            } catch(e) {}
+        }
+
+        function selectRight(index) {
+            if (selectedLeft === null) return;
+
+            const left = leftWords[selectedLeft].left;
+            const right = rightWords[index].right;
+            // speak(right); // Audio disabled
+
+            const correct = pairs.find(p => p.left === left).right === right;
+
+            const leftElem = document.querySelector(`#leftWords .wordCard[data-index='${selectedLeft}']`);
+            const rightElem = document.querySelector(`#rightWords .wordCard[data-index='${index}']`);
+
+            const feedback = document.getElementById('feedback');
+            feedback.innerText = correct ? '' : '';
+            feedback.style.color = '#28a745';
+
+            if (correct) {
+                // Apply permanent correct styling
+                leftElem.classList.add('correct');
+                rightElem.classList.add('correct');
+
+                leftElem.classList.add('disabled');
+                rightElem.classList.add('disabled');
+
+                playSuccessSound();
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                setTimeout(() => confetti.reset(), 1000);
+
+                matched.push({ left: selectedLeft, right: index });
+
+                // If all pairs matched correctly, celebrate
+                if (matched.length === pairs.length) {
+                    if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                        XENITH.FEEDBACK.showSuccess({
+                            container: document.getElementById('x_pageDiv'),
+                            message: 'goed gedaan!',
+                            showConfetti: true,
+                            playSound: true
+                        });
+                    } else {
+                        feedback.innerText = 'goed gedaan!';
+                        feedback.style.fontWeight = 'normal';
+                        try {
+                            confetti({
+                                particleCount: 120,
+                                spread: 70,
+                                origin: { y: 0.6 }
+                            });
+                            setTimeout(() => confetti.reset(), 1000);
+                        } catch(e) {}
+                    }
+                } else {
+                    feedback.innerText = '';
+                }
+            } else {
+                // Flash red temporarily
+                leftElem.classList.add('wrong');
+                rightElem.classList.add('wrong');
+
+                playErrorSound();
+
+                setTimeout(() => {
+                    leftElem.classList.remove('wrong');
+                    rightElem.classList.remove('wrong');
+                    // keep feedback empty; red flash is enough
+                }, 700);
+            }
+
+            selectedLeft = null;
+            clearHighlights('leftWords');
+            try { document.getElementById('rightWords')?.classList.remove('active'); } catch(e) {}
+        }
+
+
+
+
+        function highlightSelected(columnId, index) {
+            clearHighlights(columnId);
+            const elem = document.querySelector(`#${columnId} .wordCard[data-index='${index}']`);
+            if (elem) elem.classList.add('selected');
+        }
+
+        function clearHighlights(columnId) {
+            document.querySelectorAll(`#${columnId} .wordCard`).forEach(el => el.classList.remove('selected'));
+        }
+    };
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'nl-NL'; // Set to Dutch; change if needed
+        window.speechSynthesis.speak(utterance);
+    }
+    synonymMatch.init();
+</script>
+
+<style>
+    #matchGame {
+        display: flex;
+        width: 90%;
+        margin: 0 auto;
+        justify-content: space-between;
+        margin-top: 1em;
+    }
+
+    .column {
+        width: 48%;
+    }
+
+    .wordCard {
+        padding: 10px;
+        background: #ffffff;
+        border: 1px solid #ccc;
+        margin-bottom: 5px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: none;
+        /* text-transform will be set dynamically based on whether it's a sentence (more than 3 words) */
+    }
+
+    .wordCard:hover {
+        background-color: #f5f0ff !important;
+        border-color: #7E1AE3 !important;
+        box-shadow: none;
+    }
+
+    /* Disable right side interactions/hover until a left word is selected */
+    #rightWords .wordCard { cursor: default; }
+    #rightWords:not(.active) .wordCard { pointer-events: none; opacity: 0.9; }
+    #rightWords:not(.active) .wordCard:hover { background-color: inherit !important; border-color: inherit !important; }
+    #rightWords.active .wordCard { cursor: pointer; }
+
+    /* Keep hover state when selected and no black border, no scale */
+    .wordCard.selected {
+        border: 1px solid #7E1AE3 !important;
+        background-color: #f5f0ff !important;
+        box-shadow: none;
+    }
+
+    /* Quiz-consistent feedback colors */
+    .wordCard.correct {
+        background-color: #28a745 !important;
+        border-color: #1e7e34 !important;
+        color: #ffffff !important;
+    }
+
+    .wordCard.wrong {
+        background-color: #dc3545 !important;
+        border-color: #bd2130 !important;
+
+        color: #ffffff !important;
+        font-weight: bold;
+    }
+
+    /* (undo) Disable hover effects while showing feedback */
+
+    .wordCard.disabled {
+        pointer-events: none;
+        font-weight: bold;
+        color: white;
+    }
+
+
+    #btnHolder {
+        margin-top: 1em;
+        text-align: center;
+    }
+
+    #feedback {
+        margin-top: 1em;
+        font-weight: bold;
+        text-align: center;
+        font-size: 1em;
+        color: #28a745;
+    }
+
+    .titles { text-align: center; max-width: 1000px; margin: 0 auto 1rem auto; padding: 0 1em; box-sizing: border-box; }
+    .titles h3 { margin: 0 0 0.5rem 0; line-height: 1.3; font-size: 1.25rem; }
+    .titles .subtitle { color: #222; line-height: 1.4; font-size: 0.95rem; font-weight: bold; }
+</style>
+
+<div id="pageContents">
+    <div id="titlesHost"></div>
+    <div id="textHolder" style="display:none;"></div>
+    <div id="matchGame">
+        <div class="column" id="leftWords"></div>
+        <div class="column" id="rightWords"></div>
+    </div>
+    <div id="feedback"></div>
+    <div id="btnHolder"></div>
+</div>

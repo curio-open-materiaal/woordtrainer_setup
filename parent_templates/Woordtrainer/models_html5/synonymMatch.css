@@ -1,0 +1,73 @@
+
+  #matchGame {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin-top: 2em;
+  }
+
+  .column {
+    flex: 1;
+    
+  }
+
+  .wordCard {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    font-size: 1.1rem;
+    font-family: "Segoe UI", sans-serif;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .wordCard:hover {
+    border-color: #bbb;
+    background-color: #f0f0f0;
+  }
+
+  .wordCard.selected {
+    border: 2px solid #0077cc;
+    background-color: #e6f0ff;
+  }
+
+  #btnHolder {
+    margin-top: 2em;
+    text-align: center;
+  }
+
+  #resetButton {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #0077cc;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  #resetButton:hover {
+    background-color: #005fa3;
+  }
+
+  #feedback {
+    margin-top: 1.5em;
+    font-weight: bold;
+    text-align: center;
+    font-size: 1.3em;
+    font-family: "Segoe UI", sans-serif;
+    min-height: 1.5em;
+  }
+
+  #textHolder {
+    font-size: 1.1rem;
+    font-family: "Segoe UI", sans-serif;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }

@@ -1,0 +1,8 @@
+<PG title="Simple Text Input" name="simpleTextInput">
+	<SCR name="getPageID"><![CDATA[
+		// Optional stub - no Flash behavior
+		pageIcon.templateData = pageIcon.extXML.toObject();
+		rootIcon.setTitleText(pageIcon.templateData.simpleTextInput[0].name);
+	]]></SCR>
+	<DEC path="path" name="placeholder" />
+</PG>

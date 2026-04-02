@@ -1,0 +1,57 @@
+#dragdropHolder {
+  display: flex;
+  flex-direction: row;
+  gap: 2em;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  margin-top: 1em;
+}
+
+#woordenKolom {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  flex: 1;
+  min-width: 120px;
+}
+
+#afbeeldingenKolom {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1em;
+  justify-content: center;
+  flex: 2;
+}
+
+.woord {
+  background: #e0e0e0;
+  padding: 0.8em 1em;
+  border-radius: 5px;
+  cursor: grab;
+  text-align: center;
+}
+
+.woord.juist {
+  background: #c8e6c9;
+  cursor: default;
+}
+
+.woord.fout {
+  background: #ffcdd2;
+}
+
+.dropzone {
+  width: 150px;
+  height: 150px;
+  border: 2px dashed #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+}
+
+.dropzone img {
+  max-width: 100%;
+  max-height: 100%;
+}

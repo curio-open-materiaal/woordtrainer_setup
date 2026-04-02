@@ -1,0 +1,102 @@
+<script type="text/javascript">
+    var flashCardsPlus = new function () {
+        var $pageContents;
+    
+        this.pageChanged = function () {};
+    
+        this.sizeChanged = function () {};
+    
+        this.init = function () {
+            $pageContents = $('#pageContentsPlus');
+    
+            let dualView = x_currentPageXML.getAttribute('dualView') === 'true';
+            let selfCheck = x_currentPageXML.getAttribute('enableSelfCheck') === 'true';
+            let darkMode = x_currentPageXML.getAttribute('darkMode') === 'true';
+            let autoFlip = x_currentPageXML.getAttribute('autoFlip') === 'true';
+            let autoFlipDelay = parseInt(x_currentPageXML.getAttribute('autoFlipDelay')) * 1000 || 5000;
+    
+            if (darkMode) {
+                let toggleBtn = $('<button class="darkToggle">🌙</button>');
+                toggleBtn.click(function () {
+                    $pageContents.toggleClass('dark');
+                });
+                $('#darkModeToggle').append(toggleBtn);
+            }
+    
+            var $cards = $('#fc-cards');
+            $cards.empty();
+    
+            let i = 0;
+            $(x_currentPageXML).children().each(function () {
+                let thisCard = this;
+                let title = thisCard.getAttribute('name') || 'Card ' + (i + 1);
+                let side1 = thisCard.getAttribute('side1') || '';
+                let side2 = thisCard.getAttribute('side2') || '';
+    
+                let $card = $('<div>')
+                    .addClass('fc-card')
+                    .attr('id', 'fc-card-' + i)
+                    .append(
+                        $('<div>').addClass('fc-inner')
+                            .append(
+                                $('<div>').addClass('fc-front').append(
+                                    $('<h3>').text(title),
+                                    $('<div>').html(side1)
+                                ),
+                                $('<div>').addClass('fc-back').append(
+                                    $('<h3>').text(title),
+                                    $('<div>').html(side2)
+                                )
+                        )
+                    )
+                    .append(
+                        $('<div>').addClass('fc-actions')
+                            .append(
+                                $('<button>').addClass('flip').text('Flip'),
+                                selfCheck ? $('<button>').addClass('self-check').text('Got it?') : '',
+                                $('<button>').addClass('bookmark').text('🔖')
+                            )
+                    );
+    
+                $cards.append($card);
+    
+                $card.find('.flip').click(function () {
+                    $card.find('.fc-inner').toggleClass('flipped');
+                });
+    
+                if (selfCheck) {
+                    $card.find('.self-check').click(function () {
+                        alert('Nice! You marked this one as done.');
+                    });
+                }
+    
+                $card.find('.bookmark').click(function () {
+                    $card.toggleClass('bookmarked');
+                    localStorage.setItem('fc-bookmark-' + i, $card.hasClass('bookmarked'));
+                });
+    
+                if (localStorage.getItem('fc-bookmark-' + i) === 'true') {
+                    $card.addClass('bookmarked');
+                }
+    
+                if (autoFlip) {
+                    setTimeout(function () {
+                        $card.find('.flip').click();
+                    }, autoFlipDelay);
+                }
+    
+                i++;
+            });
+    
+            x_pageLoaded();
+        };
+    
+        this.init();
+    };
+    </script>
+    
+    <div id="pageContentsPlus">
+        <div id="darkModeToggle"></div>
+        <div id="fc-cards" class="fc-container"></div>
+    </div>
+    

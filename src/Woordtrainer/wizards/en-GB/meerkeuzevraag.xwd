@@ -1,0 +1,34 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <meerkeuzevraag><![CDATA[
+        <meerkeuzevraag name="meerkeuzevraag: "
+          text="Kies het juiste woord bij de afbeelding."
+          retryBtnTxt="Probeer opnieuw"
+          woord="appel"
+          woordItemText="Beluister het geluidsfragment"
+          woordItemOptions="appel
+apel
+apple
+apul"
+          woordItemCorrect="appel"
+          woordItemImageHtml="&lt;img src='media/apple.jpg' /&gt;"
+        />
+      ]]></meerkeuzevraag>
+    </newNodes>
+  </pageWizard>
+
+  <meerkeuzevraag
+    menu="Woordtrainer"
+    menuItem="Meerkeuzevraag"
+    hint="Quiz om het juiste woord te kiezen uit meerdere opties"
+    icon="icLayers"
+    thumb="thumbs/hotspotImage.jpg"
+    remove="true">
+        <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <woord label="Woord" type="TextInput" placeholder="Het woord dat uitgesproken moet worden"/>
+    <woordItemCorrect label="Correcte antwoord" type="TextInput"/>
+    <woordItemOptions label="Keuzes (één per regel)" type="TextArea" height="100" placeholder="Voer elke optie op een nieuwe regel in"/>
+  </meerkeuzevraag>
+</wizard>
+

@@ -1,0 +1,23 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="false">
+    <newNodes>
+      <synonymMatch><![CDATA[<synonymMatch name="Voer paginatitel in" text="" wordPairs="" retryBtnTxt="Probeer opnieuw" showAnswersBtnTxt="Toon antwoorden" />]]></synonymMatch>
+    </newNodes>
+  </pageWizard>
+
+  <!-- SYNONYMMATCH============================== -->
+  <synonymMatch menu="Woordtrainer" menuItem="Koppel" hint="Koppel woorden aan hun synoniemen." icon="icWordsearch" thumb="thumbs/synonym.jpg" example="https://xot.xerte.org.uk/play_synonymsample" wiki="https://xerte.org.uk/wiki/doku.php?id=games_synonym_match_page" remove="true">
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <text label="Instructies" type="TextArea" height="100" placeholder="Koppel elk woord aan zijn synoniem."/>
+    <wordPairs label="Woord- en synoniemenparen" type="script" height="100" tooltip="Voer paren in het formaat in: groot=breed, klein=tenger"/>
+
+    <colours type="group" label="Kleuren" optional="true">
+      <correct label="Juiste koppeling" type="ColourPicker" defaultValue="0x00cc00" optional="true"/>
+      <incorrect label="Foute koppeling" type="ColourPicker" defaultValue="0xcc0000" optional="true"/>
+      <default label="Standaard kaartkleur" type="ColourPicker" defaultValue="0xeeeeee" optional="true"/>
+    </colours>
+
+    <retryBtnTxt label="Label voor opnieuw proberen knop" type="TextInput" defaultValue="Probeer opnieuw" language="true"/>
+    <showAnswersBtnTxt label="Label voor antwoorden tonen knop" type="TextInput" defaultValue="Toon antwoorden" language="true"/>
+  </synonymMatch>
+</wizard>

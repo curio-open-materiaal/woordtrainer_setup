@@ -1,0 +1,1965 @@
+<style>
+    /* Main wrapper to prevent shifting */
+    #pageContents {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 60px;
+        padding-top: 0;
+    }
+
+    #wordListContainer {
+        max-width: 900px;
+        padding: 1em 2em;
+        margin: 0 auto;
+        border-radius: 16px;
+        box-sizing: border-box;
+        width: 100%;
+        flex-shrink: 0;
+        position: relative;
+    }
+
+    .titles {
+        text-align: center;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 1em;
+        box-sizing: border-box;
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        flex-shrink: 0;
+        padding-top: 0;
+    }
+
+    .titles h3 {
+        padding: 0;
+        margin: 0;
+        line-height: 1.3;
+        font-weight: bold;
+        padding-top: 0;
+    }
+
+    .subtitle {
+        color: #666;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .wordList {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1em 1.4em;
+        justify-items: center;
+        text-align: center;
+        padding: 0 0.5em;
+        box-sizing: border-box;
+    }
+
+    .wordList p {
+        margin: 0;
+        color: #222;
+        border: 1px solid #ccc;
+        width: 100%;
+        max-width: 180px;
+        padding: 6px 5px;
+        border-radius: 12px;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+        cursor: pointer;
+        user-select: none;
+        box-sizing: border-box;
+        word-wrap: break-word;
+        hyphens: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 42px;
+        font-size: 0.8em;
+    }
+
+    .wordList.compact {
+        gap: 0.8em 1.2em;
+    }
+
+    .wordList.compact p {
+        padding: 6px 5px;
+        font-size: 0.75em;
+        max-width: 180px;
+        min-height: 40px;
+    }
+
+    .wordList p:hover {
+        background-color: #f5f0ff;
+        border-color: #7E1AE3;
+    }
+
+    .wordList p.clicked { animation: none; }
+
+    .select-words-button {
+        display: block;
+        margin: 1.5rem auto;
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: bold;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .select-words-button:hover {
+        background-color: #6a16c7;
+    }
+
+    /* Modal styles for word selection */
+    .word-selection-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .word-selection-modal-content {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        max-width: 1000px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        position: relative;
+    }
+
+    .word-selection-modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: none;
+        border: none;
+        font-size: 1.8rem;
+        cursor: pointer;
+        color: #666;
+        line-height: 1;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+
+    .word-selection-modal-close:hover {
+        color: #333;
+        background: #f5f5f5;
+        border-radius: 50%;
+    }
+
+    .selection-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 200px;
+        padding: 0.5rem;
+        font-size: 1rem;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        outline: none;
+    }
+
+    .search-box:focus {
+        border-color: #7E1AE3;
+    }
+
+    .selection-counter {
+        font-weight: bold;
+        color: #7E1AE3;
+        font-size: 1.1rem;
+    }
+
+    .words-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 1rem;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background: #f9f9f9;
+    }
+
+    .word-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: white;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .word-item:hover {
+        border-color: #7E1AE3;
+        background: #f5f0ff;
+    }
+
+    .word-item.selected {
+        border-color: #7E1AE3;
+        background: #e8e0ff;
+    }
+
+    .word-item input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .word-item label {
+        flex: 1;
+        cursor: pointer;
+        font-size: 0.95rem;
+        user-select: none;
+    }
+
+    .modal-action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+    }
+
+    .modal-action-btn {
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .modal-action-btn.primary {
+        background-color: #7E1AE3;
+        color: white;
+    }
+
+    .modal-action-btn.primary:hover:not(:disabled) {
+        background-color: #6a16c7;
+    }
+
+    .modal-action-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .print-button,
+    .progress-button {
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: bold;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+    }
+    .print-button:hover,
+    .progress-button:hover {
+        background-color: #6a16c7;
+    }
+    .woordenlijst-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        margin: 2rem auto 0;
+    }
+    .print-button i,
+    .progress-button i {
+        font-size: 1.1em;
+    }
+    .progress-modal-woordenlijst {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        box-sizing: border-box;
+    }
+    .progress-modal-woordenlijst .progress-modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    .progress-modal-woordenlijst .progress-modal-box {
+        position: relative;
+        background: #fff;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 480px;
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    .progress-modal-woordenlijst .progress-modal-close {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #7E1AE3;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+    }
+    .progress-modal-woordenlijst .progress-modal-close:hover {
+        background-color: #6a16c7;
+        color: #fff;
+    }
+    .progress-modal-woordenlijst .progress-modal-title {
+        margin: 0 0 1rem 0;
+        font-size: 1.35rem;
+        color: #7E1AE3;
+    }
+    .progress-modal-woordenlijst .progress-table-wrap {
+        overflow-x: auto;
+        margin-top: 0.5rem;
+    }
+    .progress-modal-woordenlijst .progress-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+        text-align: left;
+    }
+    .progress-modal-woordenlijst .progress-table th,
+    .progress-modal-woordenlijst .progress-table td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+    .progress-modal-woordenlijst .progress-table th {
+        font-weight: 700;
+        color: #555;
+        text-transform: lowercase;
+    }
+    .progress-modal-woordenlijst .progress-table td.progress-word { color: #333; }
+    .progress-modal-woordenlijst .progress-table td.progress-good { color: #28a745; }
+    .progress-modal-woordenlijst .progress-table td.progress-wrong { color: #dc3545; }
+    .progress-modal-woordenlijst .progress-table td.progress-pct { color: #7E1AE3; font-weight: 600; }
+    .progress-modal-woordenlijst .progress-row { margin: 0.6rem 0; font-size: 1.05rem; color: #333; }
+
+    /* Word modal (same as woordenLijstExtended) */
+    .word-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .word-modal-content {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        max-width: 650px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        position: relative;
+        line-height: 1.5;
+    }
+
+    .word-modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: none;
+        border: none;
+        font-size: 1.8rem;
+        cursor: pointer;
+        color: #666;
+        line-height: 1;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+
+    .word-modal-close:hover {
+        color: #333;
+        background: #f5f5f5;
+        border-radius: 50%;
+    }
+
+    .word-modal-main-content {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .word-modal-card {
+        background: #f9f9f9;
+        border: 1px solid #ccc;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .word-modal-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .word-modal-card-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #7E1AE3;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+
+    .word-modal-card-content {
+        color: #333;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 0.75rem;
+    }
+
+    .word-modal-card-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .word-modal-section {
+        margin-bottom: 0;
+    }
+
+    .audio-button {
+        background-color: #7E1AE3;
+        color: #ffffff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        white-space: nowrap;
+    }
+
+    .audio-button:hover {
+        background-color: #6a16c7;
+        color: #ffffff;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    }
+
+    .audio-button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+
+    .score-section {
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .score-section-title {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #7E1AE3;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .score-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+
+    .score-stat {
+        text-align: center;
+    }
+
+    .score-stat-label {
+        font-size: 0.75rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .score-stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #7E1AE3;
+    }
+
+    /* Tablet Responsive */
+    @media (max-width: 900px) {
+        #wordListContainer {
+            padding: 1.5em 1em !important;
+            max-width: 100%;
+        }
+        
+        .titles {
+            padding: 0 1em !important;
+            padding-top: 20px !important;
+            max-width: 100%;
+            margin-bottom: 0.5em !important;
+        }
+        
+        .titles h3 {
+            margin: 0 !important;
+            padding-top: 0 !important;
+            font-size: clamp(1.1rem, 3vw, 1.3rem);
+        }
+        
+        .subtitle {
+            font-size: clamp(0.85rem, 2.5vw, 1rem) !important;
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+            gap: 0.6em 0.8em !important;
+            padding: 0 1em !important;
+        }
+        
+        .wordList p {
+            padding: 5px 4px !important;
+            max-width: 150px !important;
+            font-size: 0.75em !important;
+            min-height: 38px !important;
+        }
+
+        .words-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.5rem;
+            max-height: 300px;
+        }
+
+        .selection-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .modal-action-buttons {
+            flex-direction: column;
+        }
+
+        .modal-action-btn {
+            width: 100%;
+        }
+    }
+
+    /* Mobile Landscape */
+    @media (max-width: 768px) {
+        #wordListContainer {
+            padding: 1em 0.8em;
+            max-width: 100%;
+        }
+        
+        .titles {
+            padding: 0 0.8em;
+            padding-top: 60px !important;
+            margin-bottom: 0.8em !important;
+            max-width: 100%;
+        }
+        
+        .titles h3 {
+            margin: 0 !important;
+            padding-top: 0 !important;
+            font-size: clamp(1rem, 3.5vw, 1.2rem);
+        }
+        
+        .subtitle {
+            font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5em 0.6em;
+            padding: 0 0.8em;
+        }
+        
+        .wordList p {
+            padding: 5px 3px;
+            max-width: none;
+            font-size: 0.7em;
+            min-height: 36px;
+        }
+
+        .word-modal-content {
+            padding: 1.25rem;
+            max-height: 90vh;
+        }
+
+        .word-modal-card {
+            padding: 0.875rem;
+        }
+
+        .word-modal-card-content {
+            font-size: 1rem;
+        }
+
+        .score-stats {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+
+        .score-stat-value {
+            font-size: 1.3rem;
+        }
+
+        .words-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.5rem;
+            max-height: 300px;
+        }
+
+        .selection-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .modal-action-buttons {
+            flex-direction: column;
+        }
+
+        .modal-action-btn {
+            width: 100%;
+        }
+    }
+
+    /* Mobile Portrait */
+    @media (max-width: 600px) {
+        #wordListContainer {
+            padding: 0.8em 0.5em;
+            max-width: 100%;
+        }
+        
+        .titles {
+            padding: 0 0.5em;
+            padding-top: 60px !important;
+            margin-bottom: 0.6em !important;
+            max-width: 100%;
+        }
+        
+        .titles h3 {
+            margin: 0 !important;
+            padding-top: 0 !important;
+            font-size: clamp(0.95rem, 4vw, 1.1rem);
+        }
+        
+        .subtitle {
+            font-size: clamp(0.75rem, 2.5vw, 0.9rem);
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.4em 0.5em;
+            padding: 0 0.5em;
+        }
+        
+        .wordList p {
+            padding: 4px 3px;
+            max-width: none;
+            font-size: 0.65em;
+            min-height: 34px;
+            border-width: 1px;
+        }
+        
+        .word-modal-content {
+            padding: 1rem;
+            max-height: 90vh;
+        }
+        
+        .word-modal-card {
+            padding: 0.75rem;
+        }
+        
+        .word-modal-card-content {
+            font-size: 0.95rem;
+        }
+        
+        .word-modal-close {
+            font-size: 1.5rem;
+            width: 28px;
+            height: 28px;
+        }
+
+        .words-grid {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 0.4rem;
+            max-height: 250px;
+        }
+    }
+
+    /* Small Mobile */
+    @media (max-width: 480px) {
+        #wordListContainer {
+            padding: 0.6em 0.4em;
+            max-width: 100%;
+        }
+        
+        .titles {
+            padding: 0 0.4em;
+            padding-top: 60px !important;
+            margin-bottom: 0.5em !important;
+            max-width: 100%;
+        }
+        
+        .titles h3 {
+            margin: 0 !important;
+            padding-top: 0 !important;
+            font-size: clamp(0.9rem, 4.5vw, 1rem);
+        }
+        
+        .subtitle {
+            font-size: clamp(0.7rem, 2.5vw, 0.85rem);
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.35em 0.4em;
+            padding: 0 0.4em;
+        }
+        
+        .wordList p {
+            padding: 4px 2px;
+            max-width: none;
+            font-size: 0.6em;
+            min-height: 32px;
+            border-width: 1px;
+        }
+        
+        .word-modal-content {
+            padding: 0.875rem;
+        }
+        
+        .word-modal-card {
+            padding: 0.625rem;
+        }
+        
+        .word-modal-card-content {
+            font-size: 0.9rem;
+        }
+
+        .words-grid {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.3rem;
+            max-height: 200px;
+        }
+    }
+
+    /* Extra Small Mobile */
+    @media (max-width: 360px) {
+        #wordListContainer {
+            padding: 0.5em 0.3em;
+            max-width: 100%;
+        }
+        
+        .titles {
+            padding: 0 0.3em;
+            padding-top: 80px !important;
+            margin-bottom: 0.4em !important;
+            max-width: 100%;
+        }
+        
+        .titles h3 {
+            margin: 0 !important;
+            padding-top: 0 !important;
+            font-size: clamp(0.85rem, 5vw, 0.95rem);
+        }
+        
+        .subtitle {
+            font-size: clamp(0.65rem, 2.5vw, 0.8rem);
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.25em 0.3em;
+            padding: 0 0.3em;
+        }
+        
+        .wordList p {
+            padding: 4px 2px;
+            max-width: none;
+            font-size: 0.55em;
+            min-height: 30px;
+            border-width: 1px;
+        }
+
+        .words-grid {
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 0.25rem;
+            max-height: 180px;
+        }
+    }
+</style>
+
+<script type="text/javascript">
+    var woordenLijstCustom = new function () {
+        const MAX_SELECTED_WORDS = 15;
+        let allAvailableWords = [];
+        let selectedWords = [];
+        
+        // Strip HTML tags from text
+        const stripHtml = function(html) {
+            if (!html) return '';
+            const tmp = document.createElement('DIV');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        };
+
+        // Language flags mapping
+        const languageFlags = {
+            'en': '🇬🇧',
+            'fr': '🇫🇷',
+            'es': '🇪🇸',
+            'de': '🇩🇪',
+            'it': '🇮🇹',
+            'pt': '🇵🇹',
+            'ar': '🇸🇦',
+            'tr': '🇹🇷',
+            'pl': '🇵🇱',
+            'ru': '🇷🇺',
+            'zh': '🇨🇳',
+            'ja': '🇯🇵',
+            'ko': '🇰🇷',
+            'nl': '🇳🇱',
+            'sv': '🇸🇪',
+            'no': '🇳🇴',
+            'da': '🇩🇰',
+            'fi': '🇫🇮',
+            'cs': '🇨🇿',
+            'hu': '🇭🇺',
+            'ro': '🇷🇴',
+            'bg': '🇧🇬',
+            'el': '🇬🇷',
+            'he': '🇮🇱',
+            'hi': '🇮🇳',
+            'th': '🇹🇭',
+            'vi': '🇻🇳',
+            'id': '🇮🇩',
+            'uk': '🇺🇦',
+            'sk': '🇸🇰',
+            'ti': '🇪🇷'
+        };
+
+        // Available languages for translation (25 languages total)
+        const availableLanguages = [
+            { code: 'en', name: 'English' },
+            { code: 'fr', name: 'Français' },
+            { code: 'es', name: 'Español' },
+            { code: 'de', name: 'Deutsch' },
+            { code: 'it', name: 'Italiano' },
+            { code: 'pt', name: 'Português' },
+            { code: 'ar', name: 'العربية' },
+            { code: 'tr', name: 'Türkçe' },
+            { code: 'pl', name: 'Polski' },
+            { code: 'ru', name: 'Русский' },
+            { code: 'zh', name: '中文' },
+            { code: 'ja', name: '日本語' },
+            { code: 'ko', name: '한국어' },
+            { code: 'nl', name: 'Nederlands' },
+            { code: 'sv', name: 'Svenska' },
+            { code: 'no', name: 'Norsk' },
+            { code: 'da', name: 'Dansk' },
+            { code: 'fi', name: 'Suomi' },
+            { code: 'cs', name: 'Čeština' },
+            { code: 'hu', name: 'Magyar' },
+            { code: 'ro', name: 'Română' },
+            { code: 'bg', name: 'Български' },
+            { code: 'el', name: 'Ελληνικά' },
+            { code: 'he', name: 'עברית' },
+            { code: 'hi', name: 'हिन्दी' },
+            { code: 'uk', name: 'Українська' },
+            { code: 'ti', name: 'ትግርኛ' }
+        ];
+
+        // Translate text using MyMemory Translation API (free, no API key needed)
+        const translateText = async function(text, targetLang) {
+            if (!text || text.trim() === '') return '';
+            
+            try {
+                // Source language is Dutch (nl), target is the requested language
+                const sourceLang = 'nl';
+                const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}&de=f.vangils@curio.nl`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.responseStatus === 200 && data.responseData && data.responseData.translatedText) {
+                    let t = data.responseData.translatedText;
+                    if (/MYMEMORY WARNING|USED ALL AVAILABLE FREE|NEXT AVAILABLE IN/i.test(t)) t = 'Vertaling niet beschikbaar';
+                    return t;
+                }
+                return '';
+            } catch (error) {
+                console.error('Translation error:', error);
+                return '';
+            }
+        };
+
+        // Show translations for a meaning (only for selected language)
+        const showTranslations = async function(text, container) {
+            // Always get the latest selected language from localStorage
+            var currentSelectedLanguage = localStorage.getItem('woordenlijst_selected_language') || '';
+            
+            // Only show translations if a language is selected
+            if (!currentSelectedLanguage || currentSelectedLanguage.trim() === '') return;
+            
+            // Get the selected language
+            const lang = availableLanguages.find(function(l) { return l.code === currentSelectedLanguage; });
+            if (!lang) return;
+
+            const translationsDiv = document.createElement('div');
+            translationsDiv.style.cssText = 'margin-top: 0.75rem; color: #666; font-size: 0.95rem; font-style: italic;';
+            translationsDiv.innerHTML = '<span style="color: #999; font-style: normal;">Laden...</span>';
+            container.appendChild(translationsDiv);
+
+            // Fetch translation for the selected language
+            const translation = await translateText(text, lang.code);
+            
+            // Show result without card
+            if (translation && translation.trim() !== '' && translation.toLowerCase() !== text.toLowerCase()) {
+                const flag = languageFlags[lang.code] || '🌐';
+                const langName = lang.name;
+                const translationText = stripHtml(translation);
+                translationsDiv.innerHTML = flag + ' <span style="color: #666; font-size: 0.9em;">' + langName + ':</span> <span style="color: #333; font-weight: 500;">' + translationText + '</span>';
+            } else {
+                // If no translation found, remove the container
+                translationsDiv.remove();
+            }
+        };
+
+        const buildPracticeSummary = function() {
+            try {
+                const map = {};
+                
+                // First, get global word stats (not per course)
+                if (typeof window.wtGetGlobalWordStats === 'function') {
+                    // Get all global stats
+                    try {
+                        const globalStats = JSON.parse(localStorage.getItem('wt:globalWordStats') || '{}');
+                        Object.keys(globalStats).forEach(wordKey => {
+                            const stats = globalStats[wordKey];
+                            if (stats && (stats.right > 0 || stats.wrong > 0)) {
+                                map[wordKey] = {
+                                    right: Number(stats.right || 0),
+                                    wrong: Number(stats.wrong || 0)
+                                };
+                            }
+                        });
+                    } catch(e) {}
+                }
+                
+                // Also get course-specific stats from wt:stats (for backward compatibility)
+                // Only for words not already in global stats, to avoid double counting
+                const prefix = `wt:stats:${location.pathname}${location.search || ''}`;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (!key || !key.startsWith(prefix)) continue;
+                    let entry = {};
+                    try { entry = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+                    const w = (entry && entry.word) ? String(entry.word).trim().toLowerCase() : null;
+                    if (!w || map[w]) continue;
+                    const right = Number(entry.rightCount || 0);
+                    const wrong = Number(entry.wrongCount || (Array.isArray(entry.wrong) ? entry.wrong.length : 0));
+                    map[w] = { right: isNaN(right) ? 0 : right, wrong: isNaN(wrong) ? 0 : wrong };
+                }
+                return map;
+            } catch (e) { return {}; }
+        };
+        
+        // Apply progress colors to word elements
+        const applyProgressToElement = function(p, practiceSummary) {
+            const key = p.dataset.word ? p.dataset.word.trim().toLowerCase() : p.textContent.trim().toLowerCase();
+            const stats = practiceSummary[key];
+            p.style.backgroundImage = '';
+            p.style.backgroundColor = '';
+            p.style.boxShadow = '';
+            p.removeAttribute('title');
+            
+            if (stats) {
+                const total = stats.right + stats.wrong;
+                if (total >= 4) {
+                    const controlled = (stats.right >= 4 * Math.max(1, stats.wrong));
+                    const weak = (stats.wrong > stats.right);
+                    if (controlled) {
+                        p.style.backgroundColor = '#c8f7c5';
+                        p.style.boxShadow = 'inset 0 0 0 2px #28a74533';
+                    } else if (weak) {
+                        p.style.backgroundColor = '#f8d7da';
+                        p.style.boxShadow = 'inset 0 0 0 2px #dc354533';
+                    } else {
+                        p.style.backgroundColor = '#ffe5b4';
+                        p.style.boxShadow = 'inset 0 0 0 2px #ff980033';
+                    }
+                    p.style.transition = 'background 0.3s ease';
+                }
+            }
+        };
+
+        // Parse word list text into word objects
+        function parseWordListText(wordListText) {
+            const words = [];
+            if (!wordListText || wordListText.trim() === '') return words;
+            
+            let wordBlocks = wordListText.split(/\n\s*\n/);
+            
+            if (wordBlocks.length === 1) {
+                const allLines = wordListText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                wordBlocks = [];
+                let currentBlock = [];
+                
+                allLines.forEach((line) => {
+                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                    const isNewWord = wordMatch && !line.toLowerCase().startsWith('contextzin');
+                    
+                    if (isNewWord && currentBlock.length > 0) {
+                        wordBlocks.push(currentBlock.join('\n'));
+                        currentBlock = [line];
+                    } else {
+                        currentBlock.push(line);
+                    }
+                });
+                
+                if (currentBlock.length > 0) {
+                    wordBlocks.push(currentBlock.join('\n'));
+                }
+            }
+            
+            wordBlocks.forEach(block => {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length === 0) return;
+                
+                let word = '';
+                let betekenis = '';
+                let contextzinExpliciet = '';
+                let contextzinImpliciet = '';
+                
+                lines.forEach(line => {
+                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                    if (wordMatch && !line.toLowerCase().startsWith('contextzin')) {
+                        word = stripHtml(wordMatch[1].trim());
+                        betekenis = stripHtml(wordMatch[2].trim());
+                    } else if (line.toLowerCase().startsWith('contextzin (i):')) {
+                        contextzinImpliciet = stripHtml(line.substring(15).trim());
+                    } else if (line.toLowerCase().startsWith('contextzin (e):')) {
+                        contextzinExpliciet = stripHtml(line.substring(15).trim());
+                    }
+                });
+                
+                if (word && word.trim().length > 0) {
+                    const wordLower = word.toLowerCase().trim();
+                    if (!words.find(w => w.word.toLowerCase().trim() === wordLower)) {
+                        // Only add word if it has a betekenis (required for most exercises)
+                        if (betekenis && betekenis.trim().length > 0) {
+                            words.push({
+                                word: word.trim(),
+                                betekenis: betekenis.trim(),
+                                contextzinExpliciet: contextzinExpliciet.trim(),
+                                contextzinImpliciet: contextzinImpliciet.trim(),
+                                audioWoord: '',
+                                audioBetekenis: '',
+                                audioContextExpliciet: '',
+                                audioContextImpliciet: ''
+                            });
+                        } else {
+                            console.warn('woordenLijstCustom: Skipping word without betekenis:', word);
+                        }
+                    }
+                }
+            });
+            
+            return words;
+        }
+
+        // Collect all words from all woordenLijstExtended and woordenLijstCustom pages in the project
+        function collectAllWordsFromProject() {
+            const words = [];
+            
+            // First, get words from the current page's wordListText field
+            if (typeof x_currentPageXML !== 'undefined' && x_currentPageXML) {
+                const currentPageWordListText = x_currentPageXML.getAttribute('wordListText') || '';
+                if (currentPageWordListText && currentPageWordListText.trim() !== '') {
+                    const currentPageWords = parseWordListText(currentPageWordListText);
+                    words.push(...currentPageWords);
+                }
+            }
+            
+            try {
+                if (typeof x_pages === 'undefined' || !x_pages || x_pages.length === 0) {
+                    return words;
+                }
+                
+                // Handle both jQuery objects and arrays
+                const pagesArray = (typeof $ !== 'undefined' && x_pages instanceof $) ? x_pages.toArray() : x_pages;
+                
+                for (let i = 0; i < pagesArray.length; i++) {
+                    let pageXML = pagesArray[i];
+                    
+                    // Skip if undefined or null
+                    if (!pageXML) {
+                        continue;
+                    }
+                    
+                    // If it's a jQuery object, get the DOM element
+                    if (typeof $ !== 'undefined' && pageXML instanceof $) {
+                        pageXML = pageXML[0] || pageXML.get(0);
+                        if (!pageXML) {
+                            continue;
+                        }
+                    }
+                    
+                    // Check if pageXML has getAttribute method
+                    if (!pageXML || typeof pageXML.getAttribute !== 'function') {
+                        // Try jQuery method
+                        if (typeof $ !== 'undefined') {
+                            try {
+                                const $page = $(pageXML);
+                                if ($page.length > 0) {
+                                    const tagName = ($page.prop('tagName') || $page.prop('nodeName') || '').toLowerCase();
+                                    const wordListText = $page.attr('wordListText') || '';
+                                    
+                                    if (tagName === 'woordenlijstextended' || tagName === 'woordenlijstcustom') {
+                                        if (wordListText && wordListText.trim() !== '') {
+                                            const pageWords = parseWordListText(wordListText);
+                                            pageWords.forEach(wordData => {
+                                                const wordLower = wordData.word.toLowerCase().trim();
+                                                if (!words.find(w => w.word.toLowerCase().trim() === wordLower)) {
+                                                    words.push(wordData);
+                                                }
+                                            });
+                                        }
+                                    }
+                                }
+                            } catch(e) {
+                                // ignore and continue
+                            }
+                        }
+                        continue;
+                    }
+                    
+                    // Get tagName safely
+                    let tagName = '';
+                    try {
+                        if (pageXML.tagName) {
+                            tagName = pageXML.tagName.toLowerCase();
+                        } else if (pageXML.nodeName) {
+                            tagName = pageXML.nodeName.toLowerCase();
+                        } else if (pageXML.localName) {
+                            tagName = pageXML.localName.toLowerCase();
+                        } else if (typeof $ !== 'undefined') {
+                            const $page = $(pageXML);
+                            tagName = ($page.prop('tagName') || $page.prop('nodeName') || '').toLowerCase();
+                        }
+                    } catch(e) {
+                        console.error('Error getting tagName for page', i, ':', e);
+                        continue;
+                    }
+                    
+                    const isWordListPage = tagName === 'woordenlijstextended' || 
+                                          tagName === 'woordenlijst extended' ||
+                                          tagName === 'woordenlijstcustom' ||
+                                          tagName === 'woordenlijst custom';
+                    
+                    if (isWordListPage) {
+                        try {
+                            const wordListText = pageXML.getAttribute('wordListText') || '';
+                            
+                            if (!wordListText || wordListText.trim() === '') {
+                                continue;
+                            }
+                            
+                            // Use the parseWordListText function
+                            const pageWords = parseWordListText(wordListText);
+                            
+                            // Add words, avoiding duplicates
+                            pageWords.forEach(wordData => {
+                                const wordLower = wordData.word.toLowerCase().trim();
+                                if (!words.find(w => w.word.toLowerCase().trim() === wordLower)) {
+                                    words.push(wordData);
+                                }
+                            });
+                        } catch(e) {
+                            console.error('Error processing word list page', i, ':', e);
+                            continue;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('woordenLijstCustom: Error collecting words:', e);
+                console.error('Error stack:', e.stack);
+            }
+            words.sort((a, b) => a.word.toLowerCase().localeCompare(b.word.toLowerCase()));
+            return words;
+        }
+
+        // Load selected words from localStorage
+        function loadSelectedWords() {
+            try {
+                const saved = localStorage.getItem('wt:customWordSet');
+                if (saved) {
+                    selectedWords = JSON.parse(saved);
+                }
+            } catch(e) {
+                selectedWords = [];
+            }
+        }
+
+        // Save selected words to localStorage
+        function saveSelectedWords() {
+            try {
+                localStorage.setItem('wt:customWordSet', JSON.stringify(selectedWords));
+            } catch(e) {}
+        }
+
+        // Check if word is selected
+        function isWordSelected(word) {
+            const wordLower = word.toLowerCase().trim();
+            return selectedWords.some(w => w.word.toLowerCase().trim() === wordLower);
+        }
+
+        // Toggle word selection
+        function toggleWordSelection(wordData) {
+            const wordLower = wordData.word.toLowerCase().trim();
+            const index = selectedWords.findIndex(w => w.word.toLowerCase().trim() === wordLower);
+            
+            if (index >= 0) {
+                selectedWords.splice(index, 1);
+            } else {
+                if (selectedWords.length < MAX_SELECTED_WORDS) {
+                    selectedWords.push(wordData);
+                } else {
+                    alert(`Je kunt maximaal ${MAX_SELECTED_WORDS} woorden selecteren.`);
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+
+        // Show modal with word details (same as woordenLijstExtended)
+        const showWordModal = function(wordData) {
+            const modal = document.createElement('div');
+            modal.className = 'word-modal';
+            
+            const content = document.createElement('div');
+            content.className = 'word-modal-content';
+            
+            const close = document.createElement('button');
+            close.className = 'word-modal-close';
+            close.innerHTML = '&times;';
+            close.addEventListener('click', () => modal.remove());
+            
+            // Add close button first
+            content.appendChild(close);
+            
+            // Word title with speaker button - centered at top
+            const wordTitleContainer = document.createElement('div');
+            wordTitleContainer.style.cssText = 'text-align: center; margin-bottom: 1.5rem; padding-top: 0.5rem;';
+            
+            const wordTitle = document.createElement('h2');
+            wordTitle.style.cssText = 'font-size: 2rem; color: #7E1AE3; margin: 0; text-transform: lowercase; font-weight: 600; display: inline-flex; align-items: center; gap: 0.75rem;';
+            wordTitle.textContent = stripHtml(wordData.word);
+            
+            // Speaker button
+            const speakerBtn = document.createElement('button');
+            speakerBtn.className = 'audio-button';
+            speakerBtn.style.cssText = 'background: #7E1AE3; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; padding: 0; transition: background-color 0.3s ease;';
+            speakerBtn.innerHTML = '<i class="fa fa-volume-high"></i>';
+            speakerBtn.addEventListener('mouseenter', () => {
+                speakerBtn.style.backgroundColor = '#6a16c7';
+            });
+            speakerBtn.addEventListener('mouseleave', () => {
+                speakerBtn.style.backgroundColor = '#7E1AE3';
+            });
+            
+            if (wordData.audioWoord) {
+                speakerBtn.addEventListener('click', () => {
+                    const audio = new Audio(wordData.audioWoord);
+                    audio.play();
+                });
+            } else {
+                speakerBtn.addEventListener('click', () => {
+                    if (typeof playText === 'function') {
+                        playText(stripHtml(wordData.word));
+                    }
+                });
+            }
+            
+            wordTitle.appendChild(speakerBtn);
+            wordTitleContainer.appendChild(wordTitle);
+            
+            // Add word translation below the title
+            const wordTranslationContainer = document.createElement('div');
+            wordTranslationContainer.style.cssText = 'text-align: center; margin-top: 0.5rem;';
+            
+            // Get selected language and show translation
+            const currentSelectedLanguage = localStorage.getItem('woordenlijst_selected_language') || '';
+            if (currentSelectedLanguage && currentSelectedLanguage.trim() !== '') {
+                const lang = availableLanguages.find(function(l) { return l.code === currentSelectedLanguage; });
+                if (lang) {
+                    const wordTranslationDiv = document.createElement('div');
+                    wordTranslationDiv.style.cssText = 'color: #666; font-size: 1rem; font-style: italic;';
+                    wordTranslationDiv.innerHTML = '<span style="color: #999; font-style: normal;">Laden...</span>';
+                    wordTitleContainer.appendChild(wordTranslationDiv);
+                    
+                    // Fetch and display translation
+                    translateText(stripHtml(wordData.word), lang.code).then(translation => {
+                        if (translation && translation.trim() !== '' && translation.toLowerCase() !== stripHtml(wordData.word).toLowerCase()) {
+                            const flag = languageFlags[lang.code] || '🌐';
+                            wordTranslationDiv.innerHTML = flag + ' <span style="color: #666; font-size: 0.9em;">' + lang.name + ':</span> <span style="color: #333; font-weight: 500;">' + stripHtml(translation) + '</span>';
+                        } else {
+                            wordTranslationDiv.remove();
+                        }
+                    });
+                }
+            }
+            
+            content.appendChild(wordTitleContainer);
+            
+            // Main content container
+            const mainContent = document.createElement('div');
+            mainContent.className = 'word-modal-main-content';
+            
+            // Betekenis section (without card)
+            const betekenisSection = document.createElement('div');
+            betekenisSection.className = 'word-modal-section';
+            
+            const betekenisHeader = document.createElement('div');
+            betekenisHeader.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;';
+            
+            const betekenisTitle = document.createElement('div');
+            betekenisTitle.style.cssText = 'font-size: 0.75rem; font-weight: 600; color: #7E1AE3; text-transform: uppercase; letter-spacing: 0.5px;';
+            betekenisTitle.textContent = 'Betekenis';
+            betekenisHeader.appendChild(betekenisTitle);
+            
+            if (wordData.betekenis) {
+                const betekenisAudioBtn = document.createElement('button');
+                betekenisAudioBtn.style.cssText = 'background: #7E1AE3; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; padding: 0; transition: background-color 0.2s ease;';
+                betekenisAudioBtn.innerHTML = '<i class="fa fa-volume-high"></i>';
+                betekenisAudioBtn.addEventListener('mouseenter', () => {
+                    betekenisAudioBtn.style.backgroundColor = '#6a16c7';
+                });
+                betekenisAudioBtn.addEventListener('mouseleave', () => {
+                    betekenisAudioBtn.style.backgroundColor = '#7E1AE3';
+                });
+                if (wordData.audioBetekenis) {
+                    betekenisAudioBtn.addEventListener('click', () => {
+                        const audio = new Audio(wordData.audioBetekenis);
+                        audio.play();
+                    });
+                } else {
+                    betekenisAudioBtn.addEventListener('click', () => {
+                        if (typeof playText === 'function') {
+                            playText(stripHtml(wordData.betekenis));
+                        }
+                    });
+                }
+                betekenisHeader.appendChild(betekenisAudioBtn);
+            }
+            
+            betekenisSection.appendChild(betekenisHeader);
+            
+            const betekenisText = document.createElement('div');
+            betekenisText.style.cssText = 'color: #333; font-size: 1.1rem; line-height: 1.6;';
+            betekenisText.textContent = stripHtml(wordData.betekenis) || 'Geen betekenis beschikbaar';
+            betekenisSection.appendChild(betekenisText);
+            
+            // Add translations to betekenis section
+            if (wordData.betekenis) {
+                showTranslations(stripHtml(wordData.betekenis), betekenisSection);
+            }
+            
+            mainContent.appendChild(betekenisSection);
+            
+            // Contextzin expliciet section (without card)
+            if (wordData.contextzinExpliciet) {
+                const contextSection = document.createElement('div');
+                contextSection.className = 'word-modal-section';
+                
+                const contextHeader = document.createElement('div');
+                contextHeader.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;';
+                
+                const contextTitle = document.createElement('div');
+                contextTitle.style.cssText = 'font-size: 0.75rem; font-weight: 600; color: #7E1AE3; text-transform: uppercase; letter-spacing: 0.5px;';
+                contextTitle.textContent = 'Voorbeeldzin';
+                contextHeader.appendChild(contextTitle);
+                
+                const contextAudioBtn = document.createElement('button');
+                contextAudioBtn.style.cssText = 'background: #7E1AE3; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; padding: 0; transition: background-color 0.2s ease;';
+                contextAudioBtn.innerHTML = '<i class="fa fa-volume-high"></i>';
+                contextAudioBtn.addEventListener('mouseenter', () => {
+                    contextAudioBtn.style.backgroundColor = '#6a16c7';
+                });
+                contextAudioBtn.addEventListener('mouseleave', () => {
+                    contextAudioBtn.style.backgroundColor = '#7E1AE3';
+                });
+                if (wordData.audioContextExpliciet) {
+                    contextAudioBtn.addEventListener('click', () => {
+                        const audio = new Audio(wordData.audioContextExpliciet);
+                        audio.play();
+                    });
+                } else {
+                    contextAudioBtn.addEventListener('click', () => {
+                        if (typeof playText === 'function') {
+                            playText(stripHtml(wordData.contextzinExpliciet));
+                        }
+                    });
+                }
+                contextHeader.appendChild(contextAudioBtn);
+                
+                contextSection.appendChild(contextHeader);
+                
+                const contextText = document.createElement('div');
+                contextText.style.cssText = 'color: #333; font-size: 1.1rem; line-height: 1.6;';
+                contextText.textContent = stripHtml(wordData.contextzinExpliciet);
+                contextSection.appendChild(contextText);
+                
+                // Add translations to contextzin section (same as betekenis)
+                if (wordData.contextzinExpliciet) {
+                    showTranslations(stripHtml(wordData.contextzinExpliciet), contextSection);
+                }
+                
+                mainContent.appendChild(contextSection);
+            }
+            
+            // Score section (using shared component)
+            if (typeof window.wtCreateScoreSection === 'function') {
+                const scoreSection = window.wtCreateScoreSection(wordData, buildPracticeSummary, showTranslations);
+                mainContent.appendChild(scoreSection);
+            }
+            
+            content.appendChild(mainContent);
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        };
+
+        // Render word list (same style as woordenLijstExtended)
+        function renderWordList() {
+            const container = document.getElementById('wordListContainer');
+            if (!container) return;
+            
+            // Remove existing word list
+            const existingWordList = container.querySelector('.wordList');
+            if (existingWordList) {
+                existingWordList.remove();
+            }
+            // Remove any existing selection buttons
+            const existingBtns = container.querySelectorAll('.select-words-button');
+            existingBtns.forEach(btn => btn.remove());
+            // Remove existing message if present
+            const existingMessage = container.querySelector('p');
+            if (existingMessage && existingMessage.textContent.includes('Nog geen woorden')) {
+                existingMessage.remove();
+            }
+            
+            if (selectedWords.length === 0) {
+                const message = document.createElement('p');
+                const messageText = "Nog geen woorden geselecteerd. Klik op de knop hieronder om woorden te kiezen.";
+                message.innerHTML = "<em>" + messageText + "</em>";
+                message.style.cssText = 'text-align: center; color: #666; padding: 2rem;';
+                container.appendChild(message);
+                
+                // Add translation below the message
+                if (typeof x_addTranslationUnder === 'function') {
+                    setTimeout(function() {
+                        x_addTranslationUnder(message, messageText);
+                    }, 100);
+                }
+            } else {
+                const div = document.createElement('div');
+                div.className = 'wordList';
+                
+                if (selectedWords.length >= 13) {
+                    div.classList.add('compact');
+                }
+                
+                function updateProgressBackgrounds() {
+                    const summary = buildPracticeSummary();
+                    document.querySelectorAll('.wordList p').forEach(p => applyProgressToElement(p, summary));
+                }
+                
+                selectedWords.forEach(wordData => {
+                    const p = document.createElement('p');
+                    p.textContent = stripHtml(wordData.word);
+                    p.dataset.word = stripHtml(wordData.word);
+                    
+                    const isSentence = wordData.word.indexOf(' ') !== -1;
+                    if (!isSentence) {
+                        p.style.textTransform = 'lowercase';
+                    } else {
+                        p.style.textTransform = 'none';
+                    }
+                    
+                    p.addEventListener('click', () => {
+                        showWordModal(wordData);
+                        p.classList.remove('clicked');
+                        void p.offsetWidth;
+                        p.classList.add('clicked');
+                    });
+                    
+                    div.appendChild(p);
+                });
+                
+                container.appendChild(div);
+                
+                window.addEventListener('wt:statsUpdated', updateProgressBackgrounds, { passive: true });
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => updateProgressBackgrounds(), 50 + i * 1000);
+                }
+            }
+            
+            // Add actions row: print + bekijk voortgang (same as woordenLijstExtended)
+            const existingActions = container.querySelector('.woordenlijst-actions');
+            if (existingActions) existingActions.remove();
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'woordenlijst-actions';
+            const printBtn = document.createElement('button');
+            printBtn.className = 'print-button';
+            printBtn.innerHTML = '<i class="fa fa-print" aria-hidden="true"></i> print woordenlijst';
+            printBtn.addEventListener('click', () => printWordsListCustom(selectedWords));
+            actionsDiv.appendChild(printBtn);
+            const progressBtn = document.createElement('button');
+            progressBtn.className = 'progress-button';
+            progressBtn.innerHTML = '<i class="fa fa-chart-simple" aria-hidden="true"></i> bekijk voortgang';
+            progressBtn.addEventListener('click', () => openProgressModalWoordenlijstCustom(selectedWords));
+            actionsDiv.appendChild(progressBtn);
+            container.appendChild(actionsDiv);
+            
+            // Add select words button
+            const selectBtn = document.createElement('button');
+            selectBtn.className = 'select-words-button';
+            selectBtn.textContent = selectedWords.length > 0 ? 'wijzig woorden selectie' : 'Selecteer woorden';
+            selectBtn.addEventListener('click', () => {
+                openWordSelectionModal();
+            });
+            container.appendChild(selectBtn);
+            
+            // Add clear selection button when there are selected words
+            if (selectedWords.length > 0) {
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'select-words-button';
+                clearBtn.textContent = 'Wis selectie';
+                clearBtn.style.marginTop = '0.5rem';
+                clearBtn.style.backgroundColor = '#6c757d';
+                clearBtn.style.color = 'white';
+                
+                clearBtn.addEventListener('click', () => {
+                    // Clear current selection
+                    selectedWords = [];
+                    saveSelectedWords();
+                    
+                    // Laat auto-generatie en andere pagina's weten dat de set leeg is
+                    try {
+                        window.dispatchEvent(new CustomEvent('wt:customWordSetUpdated', { 
+                            detail: { wordCount: 0 } 
+                        }));
+                    } catch(e) {}
+
+                    // Herteken lijst en UI na wissen
+                    renderWordList();
+                });
+                container.appendChild(clearBtn);
+            }
+            
+            // Update word count
+            document.getElementById('amount-words').textContent = selectedWords.length;
+        }
+        
+        function escapeHtmlProgressCustom(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        function printWordsListCustom(words) {
+            if (!words || words.length === 0) return;
+            var printWindow = window.open('', '_blank');
+            var projectTitle = document.querySelector('h1') ? document.querySelector('h1').textContent : 'Woordtrainer';
+            var rows = words.map(function(w) {
+                var cell = escapeHtmlProgressCustom(w.word);
+                if (w.meaning) cell += ' – ' + escapeHtmlProgressCustom(w.meaning);
+                return '<tr><td>' + cell + '</td></tr>';
+            }).join('');
+            printWindow.document.write('<!DOCTYPE html><html><head><title>Woordenlijst</title><style>body{font-family:sans-serif;padding:2rem;} table{width:100%;border-collapse:collapse;} td{padding:0.5rem;border-bottom:1px solid #eee;}</style></head><body><h1>woordenlijst</h1><p>' + escapeHtmlProgressCustom(projectTitle) + '</p><table><tbody>' + rows + '</tbody></table></body></html>');
+            printWindow.document.close();
+            printWindow.onload = function() { printWindow.print(); printWindow.close(); };
+        }
+        function openProgressModalWoordenlijstCustom(words) {
+            var wordSet = {};
+            for (var i = 0; i < words.length; i++) {
+                var w = words[i];
+                var wordStr = (w && w.word != null) ? String(w.word).trim() : '';
+                var k = wordStr.toLowerCase();
+                if (k && !wordSet[k]) wordSet[k] = wordStr;
+            }
+            var globalStatsData = {};
+            try { globalStatsData = JSON.parse(localStorage.getItem('wt:globalWordStats') || '{}'); } catch (e) {}
+            var byWordAll = {};
+            for (var gk in globalStatsData) {
+                if (globalStatsData.hasOwnProperty(gk)) {
+                    var g = globalStatsData[gk];
+                    byWordAll[gk] = { word: wordSet[gk] || gk, right: (g && typeof g.right === 'number') ? g.right : 0, wrong: (g && typeof g.wrong === 'number') ? g.wrong : 0 };
+                }
+            }
+            for (var k in wordSet) {
+                if (wordSet.hasOwnProperty(k) && !byWordAll[k]) byWordAll[k] = { word: wordSet[k], right: 0, wrong: 0 };
+                else if (byWordAll[k] && wordSet[k]) byWordAll[k].word = wordSet[k];
+            }
+            var wordsForTable = [];
+            for (var k in wordSet) {
+                if (wordSet.hasOwnProperty(k)) wordsForTable.push({ word: wordSet[k], allRight: (byWordAll[k] && byWordAll[k].right) || 0, allWrong: (byWordAll[k] && byWordAll[k].wrong) || 0 });
+            }
+            if (wordsForTable.length === 0) {
+                for (var k in byWordAll) { if (byWordAll.hasOwnProperty(k)) wordsForTable.push({ word: byWordAll[k].word, allRight: byWordAll[k].right || 0, allWrong: byWordAll[k].wrong || 0 }); }
+            }
+            wordsForTable.sort(function(a, b) { return a.word.localeCompare(b.word, 'nl'); });
+            function renderTable() {
+                var h = '<div class="progress-table-wrap"><table class="progress-table"><thead><tr><th>woord</th><th>goed</th><th>fout</th><th>totaal</th><th>%</th></tr></thead><tbody>';
+                for (var i = 0; i < wordsForTable.length; i++) {
+                    var w = wordsForTable[i];
+                    var right = w.allRight || 0, wrong = w.allWrong || 0, total = right + wrong;
+                    var pct = total > 0 ? Math.round((right / total) * 100) : '-';
+                    h += '<tr><td class="progress-word">' + escapeHtmlProgressCustom(w.word) + '</td><td class="progress-good">' + right + '</td><td class="progress-wrong">' + wrong + '</td><td>' + total + '</td><td class="progress-pct">' + pct + (total > 0 ? '%' : '') + '</td></tr>';
+                }
+                return h + '</tbody></table></div>';
+            }
+            var modal = document.getElementById('progressModalWoordenlijst');
+            var content = document.getElementById('progressModalContentWoordenlijst');
+            if (!modal || !content) return;
+            content.innerHTML = '<h3 class="progress-modal-title">Voortgang per woord (algemeen)</h3>' + (wordsForTable.length === 0 ? '<p class="progress-row">Geen voortgang nog. Maak oefeningen om je resultaten te zien.</p>' : renderTable());
+            modal.style.display = 'flex';
+        }
+        window.wtCloseProgressModal = function() { var m = document.getElementById('progressModalWoordenlijst'); if (m) m.style.display = 'none'; };
+
+        // Open word selection modal
+        function openWordSelectionModal() {
+            const modal = document.createElement('div');
+            modal.className = 'word-selection-modal';
+            
+            const content = document.createElement('div');
+            content.className = 'word-selection-modal-content';
+            
+            const close = document.createElement('button');
+            close.className = 'word-selection-modal-close';
+            close.innerHTML = '&times;';
+            close.addEventListener('click', () => modal.remove());
+            
+            const header = document.createElement('div');
+            header.className = 'selection-header';
+            
+            const searchBox = document.createElement('input');
+            searchBox.type = 'text';
+            searchBox.className = 'search-box';
+            searchBox.placeholder = 'Zoek woorden...';
+            
+            const counter = document.createElement('div');
+            counter.className = 'selection-counter';
+            counter.id = 'modalSelectionCounter';
+            
+            header.appendChild(searchBox);
+            header.appendChild(counter);
+            
+            const wordsGrid = document.createElement('div');
+            wordsGrid.className = 'words-grid';
+            wordsGrid.id = 'modalWordsGrid';
+            
+            const actionButtons = document.createElement('div');
+            actionButtons.className = 'modal-action-buttons';
+            
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'modal-action-btn primary';
+            saveBtn.textContent = 'Opslaan';
+            saveBtn.id = 'modalSaveBtn';
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'modal-action-btn';
+            cancelBtn.textContent = 'Annuleren';
+            cancelBtn.style.cssText = 'background-color: #6c757d; color: white;';
+            cancelBtn.addEventListener('click', () => modal.remove());
+            
+            actionButtons.appendChild(saveBtn);
+            actionButtons.appendChild(cancelBtn);
+            
+            content.appendChild(close);
+            content.appendChild(header);
+            content.appendChild(wordsGrid);
+            content.appendChild(actionButtons);
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            // Store current selection for modal
+            let modalSelectedWords = JSON.parse(JSON.stringify(selectedWords));
+            
+            // Render words in modal
+            function renderModalWords() {
+                const searchTerm = searchBox.value.toLowerCase();
+                const filteredWords = allAvailableWords.filter(w => 
+                    w.word.toLowerCase().includes(searchTerm) ||
+                    (w.betekenis && w.betekenis.toLowerCase().includes(searchTerm))
+                );
+                
+                counter.textContent = `${modalSelectedWords.length} van ${MAX_SELECTED_WORDS} geselecteerd`;
+                
+                wordsGrid.innerHTML = '';
+                
+                if (filteredWords.length === 0) {
+                    wordsGrid.innerHTML = '<div style="text-align:center;color:#666;padding:2rem;">Geen woorden gevonden.</div>';
+                } else {
+                    filteredWords.forEach(wordData => {
+                        const wordItem = document.createElement('div');
+                        const isSelected = modalSelectedWords.some(w => w.word.toLowerCase().trim() === wordData.word.toLowerCase().trim());
+                        wordItem.className = 'word-item' + (isSelected ? ' selected' : '');
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `modal-word-${wordData.word}`;
+                        checkbox.checked = isSelected;
+                        checkbox.disabled = !isSelected && modalSelectedWords.length >= MAX_SELECTED_WORDS;
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.textContent = wordData.word;
+                        
+                        wordItem.appendChild(checkbox);
+                        wordItem.appendChild(label);
+                        
+                        wordItem.addEventListener('click', (e) => {
+                            if (e.target.type !== 'checkbox') {
+                                checkbox.checked = !checkbox.checked;
+                            }
+                            if (toggleWordSelectionInModal(wordData)) {
+                                renderModalWords();
+                            }
+                        });
+                        
+                        checkbox.addEventListener('change', () => {
+                            if (toggleWordSelectionInModal(wordData)) {
+                                renderModalWords();
+                            }
+                        });
+                        
+                        wordsGrid.appendChild(wordItem);
+                    });
+                }
+                
+                saveBtn.disabled = modalSelectedWords.length === 0;
+            }
+            
+            // Toggle word selection in modal
+            function toggleWordSelectionInModal(wordData) {
+                const wordLower = wordData.word.toLowerCase().trim();
+                const index = modalSelectedWords.findIndex(w => w.word.toLowerCase().trim() === wordLower);
+                
+                if (index >= 0) {
+                    modalSelectedWords.splice(index, 1);
+                } else {
+                    if (modalSelectedWords.length < MAX_SELECTED_WORDS) {
+                        modalSelectedWords.push(wordData);
+                    } else {
+                        alert(`Je kunt maximaal ${MAX_SELECTED_WORDS} woorden selecteren.`);
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+            
+            searchBox.addEventListener('input', () => {
+                renderModalWords();
+            });
+            
+            saveBtn.addEventListener('click', () => {
+                // Update selected words
+                selectedWords = modalSelectedWords;
+                
+                // Save to localStorage
+                saveSelectedWords();
+                
+                // Close modal
+                modal.remove();
+                
+                // Re-render the word list to reflect changes
+                renderWordList();
+                
+                // Trigger auto-generation if words are selected and auto-generation hasn't been activated yet
+                if (selectedWords.length > 0 && (typeof x_autoGenerateMode === 'undefined' || !x_autoGenerateMode)) {
+                    // Dispatch event to trigger auto-generation check
+                    try {
+                        window.dispatchEvent(new CustomEvent('wt:customWordSetUpdated', { 
+                            detail: { wordCount: selectedWords.length } 
+                        }));
+                    } catch(e) {
+                        console.error('Error dispatching custom word set update event:', e);
+                    }
+                }
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+            
+            renderModalWords();
+        }
+
+        this.pageChanged = function () {
+            try {
+                const summary = buildPracticeSummary();
+                document.querySelectorAll('.wordList p').forEach(p => applyProgressToElement(p, summary));
+            } catch(e) {}
+        };
+
+        this.init = function () {
+            window.scrollTo(0, 0);
+            
+            const tryInit = (attempt = 0) => {
+                console.log('woordenLijstCustom: tryInit attempt', attempt);
+                console.log('x_pages available:', typeof x_pages !== 'undefined');
+                console.log('x_pages value:', x_pages);
+                console.log('x_pages length:', x_pages ? x_pages.length : 'N/A');
+                console.log('x_pageInfo available:', typeof x_pageInfo !== 'undefined');
+                console.log('x_pageInfo value:', typeof x_pageInfo !== 'undefined' ? x_pageInfo : 'N/A');
+                console.log('x_pageInfo length:', typeof x_pageInfo !== 'undefined' && x_pageInfo ? x_pageInfo.length : 'N/A');
+                
+                if (typeof x_pages !== 'undefined' && x_pages && x_pages.length > 0) {
+                    console.log('x_pages is available, starting collection...');
+                    allAvailableWords = collectAllWordsFromProject();
+                    console.log('Collected', allAvailableWords.length, 'words');
+                    loadSelectedWords();
+                    renderWordList();
+                } else if (attempt < 20) {
+                    console.log('Waiting for x_pages... attempt', attempt + 1);
+                    setTimeout(() => tryInit(attempt + 1), 100);
+                } else {
+                    console.error('woordenLijstCustom: x_pages not available after', attempt, 'attempts');
+                    console.log('Final check - x_pages:', typeof x_pages !== 'undefined' ? x_pages : 'undefined');
+                    console.log('Final check - x_pageInfo:', typeof x_pageInfo !== 'undefined' ? x_pageInfo : 'undefined');
+                    const container = document.getElementById('wordListContainer');
+                    if (container) {
+                        const errorMsg = document.createElement('p');
+                        errorMsg.style.cssText = 'color: red; padding: 1rem; text-align: center;';
+                        errorMsg.textContent = 'Kon geen woorden vinden. Zorg ervoor dat er woordenlijstExtended of woordenlijstCustom pagina\'s in het project zijn. Open de browser console (F12) voor meer details.';
+                        container.appendChild(errorMsg);
+                    }
+                }
+            };
+            
+            tryInit();
+            
+            x_pageLoaded();
+        };
+    };
+
+    if (typeof x_pageLoaded === 'function') {
+        woordenLijstCustom.init();
+    } else {
+        setTimeout(() => {
+            woordenLijstCustom.init();
+        }, 200);
+    }
+    
+    // Add translation for subtitle after page loads
+    if (typeof x_addTranslationUnder === 'function') {
+        setTimeout(function() {
+            const subtitleEl = document.querySelector('.subtitle');
+            if (subtitleEl) {
+                const subtitleText = 'Klik op de woorden voor meer informatie';
+                x_addTranslationUnder(subtitleEl, subtitleText);
+            }
+        }, 100);
+    }
+</script>
+
+<div id="pageContents">
+    <div class="titles">
+        <h3>Jouw <span id="amount-words">0</span> geselecteerde woorden.</h3>
+        <div class="subtitle">Klik op de woorden voor meer informatie.</div>
+    </div>
+    <div id="wordListContainer"></div>
+</div>
+
+<!-- Voortgang modal (algemeen) -->
+<div id="progressModalWoordenlijst" class="progress-modal-woordenlijst" style="display: none;" aria-hidden="true">
+    <div class="progress-modal-overlay" onclick="window.wtCloseProgressModal();"></div>
+    <div class="progress-modal-box">
+        <button type="button" class="progress-modal-close" onclick="window.wtCloseProgressModal();" aria-label="Sluiten">&times;</button>
+        <div id="progressModalContentWoordenlijst"></div>
+    </div>
+</div>

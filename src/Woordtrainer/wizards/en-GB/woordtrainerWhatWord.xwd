@@ -1,0 +1,27 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <woordtrainerWhatWord><![CDATA[
+        <woordtrainerWhatWord name="Welk woord?"
+          text="Luister naar de zin en typ het woord."
+          sentence="Ik ga morgen naar de supermarkt om brood te kopen."
+          targetWord="supermarkt"/>
+      ]]></woordtrainerWhatWord>
+    </newNodes>
+  </pageWizard>
+
+  <woordtrainerWhatWord
+    menu="Woordtrainer"
+    menuItem="Welk woord?"
+    hint="Speelt een zin af via voorleesfunctie. Laat de student het juiste woord intypen."
+    icon="icTextEntry"
+    thumb="thumbs/textInput.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <text label="Introductie of instructie" type="TextArea" height="100"/>
+    <sentence label="Zin (wordt voorgelezen)" type="TextArea" height="100"/>
+    <targetWord label="Te raden woord" type="TextInput"/>
+  </woordtrainerWhatWord>
+</wizard>
+

@@ -1,0 +1,925 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+    var woordtrainerCategorize = new function () {
+      let categories = [];
+      let allWords = [];
+      let originalZones = {};
+
+      // Sound function for correct answers
+      function playSuccessSound() {
+        try {
+          // Create a simple success sound using Web Audio API
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+          oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+          oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+          
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+          
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+        }
+      }
+
+      this.init = function () {
+        document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+        const wrapper = document.getElementById('categorizeWrapper');
+        if (!wrapper) return;
+
+        // Title is now hardcoded in HTML, no need to set it dynamically
+        categories = [];
+        allWords = [];
+        originalZones = {};
+
+        for (let i = 1; i <= 4; i++) {
+          const input = x_currentPageXML.getAttribute(`categorie${i}`);
+          if (input && input.includes(':')) {
+            const [label, wordsStr] = input.split(':');
+            const words = wordsStr.split(',').map(w => w.trim()).filter(Boolean);
+            categories.push({ label: label.trim(), words });
+            allWords.push(...words.map(w => ({ word: w, correctCategory: label.trim() })));
+          }
+        }
+
+        renderUI();
+      };
+
+      // Helper function to move word to a specific zone
+      function moveWordToZone(word, targetZone) {
+        const card = document.querySelector(`.wordCard[data-word="${word}"]`);
+        if (card && targetZone) {
+          targetZone.appendChild(card);
+        }
+      }
+
+      function renderUI() {
+        const container = document.querySelector('.categorizeContainer');
+        container.innerHTML = '';
+
+        // Create mobile-friendly layout
+        const layout = document.createElement('div');
+        layout.className = 'mobileLayout';
+
+        // Words section
+        const wordsSection = document.createElement('div');
+        wordsSection.className = 'wordsSection';
+        
+        const wordsContainer = document.createElement('div');
+        wordsContainer.className = 'wordsContainer';
+
+        allWords.sort(() => Math.random() - 0.5).forEach(({ word }) => {
+          const item = document.createElement('div');
+          item.className = 'wordCard';
+          item.innerText = word;
+          item.dataset.word = word;
+          item.dataset.currentCategory = '';
+
+          // Click to select word
+          item.addEventListener('click', () => {
+            selectWord(word, item);
+          });
+
+          // Touch feedback
+          item.addEventListener('touchstart', (e) => {
+            item.classList.add('touching');
+          });
+
+          item.addEventListener('touchend', (e) => {
+            item.classList.remove('touching');
+          });
+
+          wordsContainer.appendChild(item);
+        });
+
+        wordsSection.appendChild(wordsContainer);
+        layout.appendChild(wordsSection);
+
+        // Categories section
+        const categoriesSection = document.createElement('div');
+        categoriesSection.className = 'categoriesSection';
+        categoriesSection.innerHTML = '<div id="instructionText" class="instructionText" style="display: none;">Klik op een categorie om het woord daar te plaatsen</div>';
+
+        categories.forEach(cat => {
+          const categoryDiv = document.createElement('div');
+          categoryDiv.className = 'categoryDiv';
+          categoryDiv.dataset.label = cat.label;
+          
+          const categoryHeader = document.createElement('div');
+          categoryHeader.className = 'categoryHeader';
+          categoryHeader.innerText = cat.label;
+          
+          const categoryWords = document.createElement('div');
+          categoryWords.className = 'categoryWords';
+          categoryWords.dataset.label = cat.label;
+          
+          // Click to place selected word in this category
+          categoryDiv.addEventListener('click', () => {
+            placeWordInCategory(cat.label);
+          });
+          
+          categoryDiv.appendChild(categoryHeader);
+          categoryDiv.appendChild(categoryWords);
+          categoriesSection.appendChild(categoryDiv);
+        });
+
+        layout.appendChild(categoriesSection);
+
+        // Restore check button
+        const checkBtn = document.createElement('button');
+        checkBtn.innerText = 'controleer antwoorden';
+        checkBtn.className = 'checkButton';
+        checkBtn.onclick = checkAnswers;
+
+        container.appendChild(layout);
+        container.appendChild(checkBtn);
+      }
+
+      let selectedWord = null;
+
+      function selectWord(word, item) {
+        // If clicking a categorized word, remove it from category and reset
+        if (item.dataset.currentCategory) {
+          item.dataset.currentCategory = '';
+          item.classList.remove('categorized');
+          item.classList.remove('selected');
+          // Also clear any persistent used-highlights when deselected
+          item.classList.remove('used-correct');
+          item.classList.remove('used-incorrect');
+          
+          // Clear any previous selection
+          selectedWord = null;
+          
+          updateCategoryDisplay();
+          return;
+        }
+        
+        // Clear previous selection
+        document.querySelectorAll('.wordCard').forEach(card => {
+          card.classList.remove('selected');
+        });
+        
+        // Select this word
+        selectedWord = { word, item };
+        item.classList.add('selected');
+        
+        // Show dropzone modal
+        showDropzoneModal(word);
+      }
+
+      function placeWordInCategory(categoryLabel) {
+        if (!selectedWord) return;
+        
+        const { word, item } = selectedWord;
+        
+        // Remove from previous category if any
+        item.dataset.currentCategory = categoryLabel;
+        item.classList.add('categorized');
+        item.classList.remove('selected');
+        
+        // Clear selection
+        selectedWord = null;
+        
+        // Remove highlights from categories
+        document.querySelectorAll('.categoryDiv').forEach(cat => {
+          cat.classList.remove('highlighted');
+        });
+        
+        // Hide instruction
+        const instructionText = document.getElementById('instructionText');
+        if (instructionText) {
+          instructionText.style.display = 'none';
+        }
+        
+        updateCategoryDisplay();
+      }
+
+      function updateCategoryDisplay() {
+        // Clear all category displays
+        document.querySelectorAll('.categoryWords, .modalCategoryWords').forEach(div => {
+          div.innerHTML = '';
+        });
+
+        // Add words to their current categories
+        document.querySelectorAll('.wordCard').forEach(card => {
+          const word = card.dataset.word;
+          const category = card.dataset.currentCategory;
+          
+          if (category) {
+            // Regular version
+            const categoryDiv = document.querySelector(`.categoryWords[data-label="${category}"]`);
+            if (categoryDiv) {
+              const wordSpan = document.createElement('span');
+              wordSpan.className = 'categoryWord';
+              wordSpan.innerText = word;
+              categoryDiv.appendChild(wordSpan);
+            }
+            
+            // Modal version
+            const modalCategoryDiv = document.querySelector(`.modalCategoryWords[data-label="${category}"]`);
+            if (modalCategoryDiv) {
+              const wordSpan = document.createElement('span');
+              wordSpan.className = 'modalCategoryWord';
+              wordSpan.innerText = word;
+              modalCategoryDiv.appendChild(wordSpan);
+            }
+          }
+        });
+      }
+
+      function checkAnswers() {
+        let correct = 0;
+        let total = allWords.length;
+
+        // Clear previous verification states on containers (no longer used)
+        document.querySelectorAll('.categoryDiv').forEach(cat => {
+          cat.classList.remove('category-correct', 'category-incorrect');
+        });
+
+        // Ensure left-list cards are not permanently highlighted
+        document.querySelectorAll('.wordCard').forEach(card => {
+          card.classList.remove('used-correct');
+          card.classList.remove('used-incorrect');
+        });
+
+        // Count correct placements and mark left cards briefly only if categorized
+        // Left list will be highlighted permanently until next check
+        document.querySelectorAll('.wordCard').forEach(card => {
+          const word = card.dataset.word;
+          const currentCategory = card.dataset.currentCategory;
+          const expected = allWords.find(w => w.word === word)?.correctCategory;
+          if (currentCategory) {
+            const isRight = (currentCategory === expected);
+            if (isRight) {
+              correct++;
+              card.classList.add('used-correct');
+            } else {
+              card.classList.add('used-incorrect');
+            }
+          }
+        });
+
+        // Determine if all words are placed and all are correct
+        let allPlaced = true;
+        for (const w of allWords) {
+          const card = document.querySelector(`.wordCard[data-word="${w.word}"]`);
+          if (!card || !card.dataset.currentCategory) { allPlaced = false; break; }
+        }
+        if (allPlaced && correct === total) {
+          try {
+            const btn = document.querySelector('.checkButton');
+            if (btn) btn.style.display = 'none';
+          } catch(e) {}
+        }
+
+        // Apply feedback directly to the words displayed inside each category box
+        document.querySelectorAll('.categoryWord').forEach(span => {
+          const w = (span.textContent || '').trim();
+          const card = document.querySelector(`.wordCard[data-word="${w}"]`);
+          if (!card) return;
+          const current = card.dataset.currentCategory || '';
+          const expected = allWords.find(x => x.word === w)?.correctCategory || '';
+          if (current && current === expected) {
+            span.classList.add('correct');
+            span.classList.remove('incorrect');
+          } else {
+            span.classList.remove('correct');
+            if (current) {
+              span.classList.add('incorrect');
+            } else {
+              span.classList.remove('incorrect');
+            }
+          }
+        });
+
+        // Auto-reset word highlights after a short delay
+        setTimeout(() => {
+          document.querySelectorAll('.categoryWord.correct, .categoryWord.incorrect').forEach(span => {
+            span.classList.remove('correct');
+            span.classList.remove('incorrect');
+          });
+        }, 1800);
+
+        showFeedback(correct, total);
+      }
+
+      function showFeedback(correct, total) {
+        try {
+          if (correct === total && total > 0) {
+            // Confetti celebration
+            try {
+              confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+              setTimeout(() => confetti.reset(), 1000);
+            } catch(e) {}
+            // Show success notification
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              // Fallback
+              let bar = document.getElementById('categorizeFeedbackBar');
+              if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'categorizeFeedbackBar';
+                bar.style.textAlign = 'center';
+                bar.style.marginTop = '10px';
+                const container = document.querySelector('.categorizeContainer');
+                if (container) container.appendChild(bar);
+              }
+              bar.innerHTML = '<div class="successMsg">goed gedaan!</div>';
+            }
+          } else {
+            // Optionally clear message or show summary; leaving empty
+          }
+        } catch(e) {}
+      }
+
+      // Dropzone modal functions
+      function showDropzoneModal(word) {
+        const modal = document.getElementById('dropzoneModal');
+        modal.style.display = 'flex';
+        // Set selected word text
+        try {
+          const wordSpan = modal.querySelector('#selectedWordText');
+          if (wordSpan) { wordSpan.textContent = word; }
+        } catch(e) {}
+        renderDropzoneModal();
+      }
+
+      function closeDropzoneModal() {
+        const modal = document.getElementById('dropzoneModal');
+        modal.style.display = 'none';
+        
+        // Clear selection
+        if (selectedWord) {
+          selectedWord.item.classList.remove('selected');
+          selectedWord = null;
+        }
+      }
+
+      // Close modal when clicking outside modalContent
+      (function attachModalOutsideClickOnce() {
+        const modal = document.getElementById('dropzoneModal');
+        if (!modal || modal.__outsideClickBound) return;
+        modal.addEventListener('click', function(e){
+          const content = modal.querySelector('.modalContent');
+          if (!content) return;
+          if (!content.contains(e.target)) {
+            closeDropzoneModal();
+          }
+        });
+        modal.__outsideClickBound = true;
+      })();
+
+      // Ensure close button always works (delegated, capturing)
+      (function attachCloseBtnHandlerOnce(){
+        if (window.__wtCloseBtnBound) return;
+        document.addEventListener('click', function(e){
+          if (e.target && (e.target.classList && e.target.classList.contains('closeModal'))) {
+            try { e.stopPropagation(); e.preventDefault(); } catch(e) {}
+            closeDropzoneModal();
+          }
+        }, true);
+        window.__wtCloseBtnBound = true;
+      })();
+
+      // Close modal on ESC key
+      (function attachEscHandlerOnce(){
+        if (window.__wtEscBound) return;
+        window.addEventListener('keydown', function(e){
+          if (e.key === 'Escape') {
+            const modal = document.getElementById('dropzoneModal');
+            if (modal && modal.style.display === 'flex') {
+              closeDropzoneModal();
+            }
+          }
+        });
+        window.__wtEscBound = true;
+      })();
+
+      function renderDropzoneModal() {
+        const categoriesContainer = document.querySelector('.modalCategoriesContainer');
+        categoriesContainer.innerHTML = '';
+
+        // Render simple choice buttons (like welkeZinJuist)
+        categories.forEach(cat => {
+          const btn = document.createElement('button');
+          btn.className = 'modalOptionBtn';
+          btn.innerText = cat.label;
+          btn.addEventListener('click', () => {
+            placeWordInCategory(cat.label);
+            closeDropzoneModal();
+          });
+          categoriesContainer.appendChild(btn);
+        });
+      }
+    };
+    woordtrainerCategorize.init();
+</script>
+
+<div id="categorizeWrapper">
+  <div class="titles">
+    <h3 class="introText" style="font-size: 1em !important">Klik op de woorden en plaats ze in de juiste categorieën.</h3>
+  </div>
+  <div class="categorizeContainer"></div>
+</div>
+
+<!-- Dropzone Modal -->
+<div id="dropzoneModal" class="dropzoneModal">
+  <div class="modalContent">
+    <div class="modalHeader">
+      <h3 class="modalTitle">Selecteer de categorie waar dit woord het best bij hoort:</h3>
+      <div class="modalWord"><strong id="selectedWordText"></strong></div>
+      <button class="closeModal" type="button" onclick="closeDropzoneModal()">×</button>
+    </div>
+    <div class="modalBody">
+      <div class="modalCategoriesContainer"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #categorizeWrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 0.5rem;
+    max-width: 80%;
+    margin: 0 auto;
+    margin-top: 1rem;
+    padding-top: 2rem;
+  }
+
+  /* Mobile specific fixes */
+  @media (max-width: 768px) {
+    #categorizeWrapper {
+      margin-top: 8rem;
+      padding-top: 4rem;
+      padding-bottom: 6rem; /* Extra space for sticky button */
+      min-height: 100vh;
+      position: relative;
+    }
+    
+    .titles {
+      margin-top: 4rem;
+      position: relative;
+      z-index: 1;
+      padding-top: 3rem;
+    }
+    
+    .titles h3 {
+      margin-top: 2rem !important;
+      font-size: 1.3em !important;
+    }
+    
+    .mobileLayout {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .wordsSection {
+      margin-top: 1rem;
+    }
+  }
+
+  .titles {
+    text-align: center;
+    max-width: 1000px;
+    margin: 0 auto 0em auto;
+    padding: 0 1em;
+    box-sizing: border-box;
+  }
+
+  .titles h3 {
+    /* font-size: 1.5em !important; */
+    padding: 0px;
+    margin: 0 0 0.5em 0;
+    line-height: 1.3;
+    font-weight: bold;
+  }
+
+  .subtitle {
+    font-size: 1.1em;
+    color: #666;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* Mobile-first layout */
+  .mobileLayout {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .wordsSection, .categoriesSection {
+    background: transparent;
+    border-radius: 8px;
+    padding: 1rem;
+    
+  }
+
+  .wordsSection h4, .categoriesSection h4 {
+    margin: 0 0 0.75rem 0;
+    color: #7E1AE3;
+    font-size: 1.1rem;
+    text-align: center;
+  }
+
+  .instructionText {
+    background: #7E1AE3;
+    color: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    animation: instructionPulse 2s infinite;
+  }
+
+  @keyframes instructionPulse {
+    0% { background-color: #7E1AE3; }
+    50% { background-color: #5a0fb8; }
+    100% { background-color: #7E1AE3; }
+  }
+
+  .wordsContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: start;
+  }
+
+  .wordCard {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px 8px !important;
+    font-weight: normal;
+    color: #000;
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    font-size: 0.85rem;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    text-transform: lowercase;
+  }
+
+  .wordCard:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+
+  .wordCard.touching {
+    /* transform: scale(1.1); */
+    background-color: #e6d9ff;
+    box-shadow: 0 4px 12px rgba(126, 26, 227, 0.3);
+  }
+
+  .wordCard.selected {
+    background-color: #7E1AE3 !important;
+    border-color: #5a0fb8 !important;
+    color: white !important;
+    /* transform: scale(1.15); */
+    box-shadow: 0 8px 25px rgba(126, 26, 227, 0.6);
+    z-index: 100;
+    position: relative;
+    border-width: 4px !important;
+    animation: selectedPulse 1s infinite;
+  }
+
+  @keyframes selectedPulse {
+    0% { box-shadow: 0 8px 25px rgba(126, 26, 227, 0.6); }
+    50% { box-shadow: 0 8px 25px rgba(126, 26, 227, 0.9); }
+    100% { box-shadow: 0 8px 25px rgba(126, 26, 227, 0.6); }
+  }
+
+  .wordCard.categorized {
+    background-color: #f0e6ff !important;
+    border-color: #6a16c7 !important;
+    color: #6a16c7 !important;
+  }
+
+  .wordCard.correct {
+    background-color: #c7f7c7 !important;
+    border-color: #00aa00 !important;
+    color: #006600 !important;
+  }
+
+  .wordCard.incorrect {
+    background-color: #fdd !important;
+    border-color: #cc0000 !important;
+    color: #990000 !important;
+  }
+
+  .categoryDiv {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .categoryDiv:hover {
+    /* transform: scale(1.02); */
+    /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); */
+  }
+
+  .categoryDiv.highlighted {
+    background: #f7f7f7;
+    border-color: #999;
+    border-width: 3px;
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    animation: pulse 1.5s infinite;
+  }
+
+  .categoryDiv.category-correct {
+    background: #e8f5e8 !important;
+    border-color: #00aa00 !important;
+    border-width: 3px !important;
+  }
+
+  /* remove header fill for correct; keep border-based feedback only */
+  .categoryDiv.category-correct .categoryHeader {
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  .categoryDiv.category-incorrect {
+    background: #ffe8e8 !important;
+    border-color: #cc0000 !important;
+    border-width: 3px !important;
+  }
+
+  /* remove header fill for incorrect; keep border-based feedback only */
+  .categoryDiv.category-incorrect .categoryHeader {
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 6px 20px rgba(126, 26, 227, 0.3); }
+    50% { box-shadow: 0 6px 20px rgba(126, 26, 227, 0.6); }
+    100% { box-shadow: 0 6px 20px rgba(126, 26, 227, 0.3); }
+  }
+
+  .categoryHeader {
+    background: transparent;
+    color: #000;
+    padding: 0.5rem;
+    font-weight: bold;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .categoryWords {
+    padding: 0.5rem;
+    min-height: 50px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: flex-start;
+  }
+
+  .categoryWord {
+    background: #f0e6ff;
+    color: #6a16c7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    border: 1px solid #d9c7ff;
+    text-transform: lowercase;
+  }
+
+  .categoryWord.correct {
+    background-color: #c7f7c7;
+    border: 1px solid #00aa00;
+    color: #006600;
+    border-radius: 6px;
+    padding: 2px 6px;
+  }
+  .categoryWord.incorrect {
+    background-color: #fdd;
+    border: 1px solid #cc0000;
+    color: #990000;
+    border-radius: 6px;
+    padding: 2px 6px;
+  }
+  /* Temporary feedback on left list cards when used */
+  .wordCard.used-correct {
+    background-color: #e6f9e6 !important;
+    border-color: #28a745 !important;
+  }
+  .wordCard.used-incorrect {
+    background-color: #ffe6e9 !important;
+    border-color: #dc3545 !important;
+  }
+
+  .checkButton {
+    position: sticky;
+    bottom: 0.5rem;
+    display: block;
+    margin: 0.5rem auto;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    background-color: #7E1AE3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    width: 100%;
+    max-width: 250px;
+    z-index: 50;
+    box-shadow: 0 4px 15px rgba(126, 26, 227, 0.3);
+  }
+
+  .checkButton:hover {
+    background-color: #6a16c7;
+    transform: scale(1.05);
+  }
+
+  /* Desktop improvements */
+  @media (min-width: 769px) {
+    .wordsContainer {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+
+    .wordCard {
+      font-size: 1rem;
+      padding: 1rem;
+      min-height: 50px;
+    }
+
+    .categoryWords {
+      min-height: 50px;
+    }
+
+    .categoryWord {
+      font-size: 0.9rem;
+      padding: 0.5rem;
+    }
+  }
+
+  /* Large screens */
+  @media (min-width: 1024px) {
+    .mobileLayout {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+
+    .wordsSection {
+      flex: 1;
+      margin-right: 1rem;
+    }
+
+    .categoriesSection {
+      flex: 1;
+    }
+  }
+
+  /* Dropzone Modal Styles */
+  .dropzoneModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    box-sizing: border-box;
+  }
+
+  .modalContent {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  .modalHeader { 
+    display: block; 
+    position: relative;
+    padding: 0.75rem 1rem 0.5rem 1rem;
+    background: transparent;
+    color: #000;
+    text-align: center;
+  }
+  .modalTitle {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: normal;
+    text-align: center;
+    color: #000;
+  }
+  .modalWord { margin-top: 0.25rem; font-size: 1rem; }
+  .modalWord strong { color: #000; }
+  .closeModal {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    line-height: 1;
+    z-index: 1001;
+    pointer-events: auto;
+  }
+  .modalBody {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem 1rem 1rem 1rem;
+  }
+  .modalCategoriesContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* WelkeZinJuist-like choice buttons */
+  .modalOptionBtn {
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: transparent !important;
+    color: black;
+    width: 100%;
+    text-align: center;
+  }
+
+  .modalOptionBtn:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+
+  .feedback-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+
+  .feedback-content {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    
+    border: 2px solid transparent;
+  }
+
+  .feedback-text {
+    /* font-weight: 600; */
+    /* font-size: 1.1em; */
+  }
+  .successMsg {
+    margin-top: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #28a745;
+    text-align: center;
+  }
+</style>

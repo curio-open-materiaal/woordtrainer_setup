@@ -1,0 +1,496 @@
+<script type="text/javascript">
+
+	var title = new function() {
+        this.pageChanged = function () {
+            if (x_currentPageXML.getAttribute("hideTitleTxt") == "true") {
+                $x_headerBlock.addClass('hideTitleTxt');
+            } else {
+                $x_headerBlock.removeClass('hideTitleTxt');
+            }
+
+            if (x_currentPageXML.getAttribute("hideIcon") == "true") {
+                $x_headerBlock.addClass('hideTitleIcon');
+            } else {
+                $x_headerBlock.removeClass('hideTitleIcon');
+            }
+
+            x_updateCss2(false);
+        }
+
+        this.sizeChanged = function () {
+            if (x_params.responsive == "true" && x_fillWindow == true) {
+                this.responsiveTitle();
+            } else {
+                $(".titlePageTxt").css("font-size", x_currentPageXML.getAttribute("size") + "pt");
+            }
+
+            this.position();
+        }
+
+        this.init = function () {
+            const $pageContents = $("#pageContents");
+            const $titlePageTxt = $(".titlePageTxt");
+            const $subtitleTxt = $(".subtitleTxt");
+
+            this.pageChanged();
+
+            // Image first
+            if (x_currentPageXML.getAttribute("url")) {
+                const $imgHolder = $('<div id="imgHolder" class="panel"><img id="pageImg" style="visibility: hidden"/></div>');
+                $imgHolder.prependTo($pageContents);
+
+                $imgHolder.find("#pageImg")
+                    .one("load", function () {
+                        const $this = $(this);
+                        $this.css("max-height", x_browserInfo.mobile ? $x_mobileScroll.height() - $x_footerBlock.height() : $x_pageHolder.height());
+                        $this.css("visibility", "visible");
+                        title.position();
+                        x_pageLoaded();
+                    })
+                    .attr({
+                        "src": x_evalURL(x_currentPageXML.getAttribute("url")),
+                        "alt": x_currentPageXML.getAttribute("tip") || ""
+                    })
+                    .each(function () {
+                        if (this.complete) $(this).trigger("load");
+                    });
+            }
+
+            // Title
+            if (x_currentPageXML.childNodes[0]?.nodeValue?.trim()) {
+                // $titlePageTxt.html(x_currentPageXML.childNodes[0].nodeValue);
+            }
+
+            // Subtitle
+      
+
+            // Additional text
+            if (x_currentPageXML.getAttribute("additionalTxt")) {
+                $('<div id="extraText">' + x_currentPageXML.getAttribute("additionalTxt") + '</div>').appendTo($pageContents);
+            }
+
+            // Start button
+            if (x_currentPageXML.getAttribute("startBtn") === "true" && $.inArray(x_currentPage, x_normalPages) !== -1 && $x_nextBtn.is(":enabled") && $x_nextBtn.is(":visible")) {
+                // $('<button id="titleStartBtn"></button>')
+                //     .appendTo($pageContents)
+                //     .button({label: x_currentPageXML.getAttribute("startBtnTxt") ?? "Start"})
+                //     .click(() => {
+                //         x_changePage(x_normalPages[$.inArray(x_currentPage, x_normalPages) + 1]);
+                //     });
+            }
+
+            // Style
+            if (x_params.responsive == "true" && x_params.displayMode != "default" && !$.isArray(x_params.displayMode)) {
+                this.responsiveTitle();
+            } else {
+                
+            }
+
+            if (x_currentPageXML.getAttribute("titleHAlign")) {
+                $pageContents.addClass(x_currentPageXML.getAttribute("titleHAlign") + "Align");
+            } else {
+                $pageContents.addClass("centerAlign");
+            }
+
+            this.position();
+            x_pageLoaded();
+        }
+
+        this.responsiveTitle = function () {
+            if (window.innerWidth >= 768 && x_fillWindow == true) {
+                
+            } else {
+            
+            }
+        }
+
+        this.position = function () {
+            const titleAlign = x_currentPageXML.getAttribute("titleVAlign");
+            const $pageContents = $("#pageContents");
+
+            $pageContents.css("margin-top", 0);
+
+            if (x_browserInfo.mobile || $pageContents.outerHeight() > $x_pageHolder.height()) {
+                $pageContents.css("position", "inherit");
+                $pageContents.attr('data-position-set-by-page', 'false');
+            } else {
+                $pageContents.css("position", "absolute");
+                $pageContents.attr('data-position-set-by-page', 'true');
+
+                if (titleAlign == 200 || titleAlign == undefined) {
+                    $pageContents.css({
+                        "top": "50%",
+                        "margin-top": 0 - Math.round($pageContents.height() / 2)
+                    });
+                } else if (titleAlign == 400) {
+                    $pageContents.css({
+                        "top": "100%",
+                        "margin-top": 0 - $pageContents.outerHeight()
+                    });
+                }
+            }
+        }
+    }
+
+	title.init();
+</script>
+
+<style>
+#imgHolder {
+    display: flex;
+    justify-content: center;
+    max-width: 100% !important;
+    float: none !important;
+    margin-bottom: 1em;
+}
+
+.subtitleTxt {
+    font-size: 1.25rem;
+    font-style: italic;
+    margin-top: 0.5em;
+    color: #555;
+    text-align: center;
+}
+.titlePageTxt {
+    text-align: center;
+}
+
+/* avoid clipping in wrappers */
+#pageContents { overflow: visible; }
+.flex { overflow: visible; }
+
+/* spacing for action buttons */
+#start-btn, #intro-btn, #l-1, #l-2, #l-3 { margin-bottom: 7px; }
+
+/* level/start icons under button labels */
+.level-icon, .start-icon { display: block; margin-top: 4px; font-size: 14px; line-height: 1; color: rgba(255, 255, 255, 0.75); }
+.level-icon i, .start-icon i { margin: 0 1px; }
+
+/* stack icon above label on buttons */
+#start-btn, #intro-btn, #l-1, #l-2, #l-3 { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+/* normalize padding and line-height so labels align */
+#start-btn, #intro-btn, #l-1, #l-2, #l-3 { padding: 10px 20px !important; line-height: 1.2; }
+
+/* Intro button: match style/height of primary buttons (purple) */
+#intro-btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 20px !important;
+    line-height: 1.2;
+    margin-bottom: 7px;
+    background-color: #7E1AE3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#intro-btn:hover {
+    background-color: #6a16c7; /* slightly darker purple on hover */
+}
+
+#intro-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(126,26,227,0.12); }
+
+/* Hide next buttons and progress tracker only when title page is active */
+.x_title_page #x_nextBtn,
+.x_title_page #x_nextBtn_top,
+.x_title_page .x_nextBtn,
+.x_title_page #x_pageNo,
+.x_title_page #x_progressBar,
+.x_title_page #x_progressBarContainer,
+.x_title_page .pbHolder {
+    display: none !important;
+}
+/* No green check badges on level selection buttons */
+.x_title_page .badge-check {
+    display: none !important;
+}
+
+/* Mobile responsive: stack buttons vertically */
+@media (max-width: 768px) {
+    .flex {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 12px !important;
+    }
+    
+    #start-btn, #intro-btn, #l-1, #l-2, #l-3 {
+        width: 100%;
+        max-width: 280px;
+        margin-top: 0 !important;
+    }
+    
+    .titlePageTxt {
+        font-size: 1.3rem !important;
+    }
+    
+    .subtitleTxt {
+        font-size: 1.1rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .flex {
+        gap: 10px !important;
+    }
+    
+    #start-btn, #intro-btn, #l-1, #l-2, #l-3 {
+        max-width: 100%;
+        padding: 12px 16px !important;
+        font-size: 0.95rem;
+    }
+    
+    .titlePageTxt {
+        font-size: 1.2rem !important;
+        padding: 0 10px;
+    }
+    
+    .subtitleTxt {
+        font-size: 1rem !important;
+        padding: 0 10px;
+    }
+}
+
+/* Modal overlay & content improvements */
+.level-modal {
+    display: none; /* controlled by JS */
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 12, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.level-modal-content {
+    background: linear-gradient(180deg, #ffffff, #fbfbfd);
+    padding: 1.25rem 1.5rem;
+    border-radius: 12px;
+    max-width: 560px;
+    width: 100%;
+    box-shadow: 0 18px 40px rgba(34, 34, 34, 0.25);
+    border: 1px solid rgba(126, 26, 227, 0.06);
+    text-align: center;
+    color: #333;
+}
+
+.level-modal-content h3 {
+    margin: 0 0 0.5rem 0;
+    color: #7E1AE3;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+#levelModalBody {
+    margin: 0.5rem 0 1rem 0;
+    color: #444;
+    line-height: 1.45;
+    font-size: 1rem;
+    text-align: center;
+}
+
+#levelModalStart {
+    background: #7E1AE3;
+    color: #fff;
+    border: none;
+    padding: 0.7rem 1.4rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    text-transform: none; /* keep 'start' lowercase */
+    box-shadow: 0 8px 18px rgba(126,26,227,0.18);
+}
+
+#levelModalStart:focus { outline: none; box-shadow: 0 0 0 3px rgba(126,26,227,0.12); }
+
+#levelModalCancel {
+    background: transparent;
+    color: #444;
+    border: none;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+#levelModalCancel:hover {
+    
+    background: rgba(0,0,0,0.12) !important; /* subtle hover background */;
+}
+
+/* Remove any decorative divider from the title area */
+.titlePageTxt { border-bottom: none !important; }
+.subtitleTxt { border-top: none !important; }
+
+</style>
+
+<div id="pageContents">
+    <div id="introPage"></div>
+    <div class="titlePageTxt" style="font-size: 1.5rem !important; font-weight:bold;">We gaan verder met de woordtrainer.</div>
+    <div class="subtitleTxt">Kies het niveau dat je wilt oefenen.</div>
+    <div class="flex" style="display: flex; margin-top: 15px; justify-content: center; gap: 25px;">
+        <button id="intro-btn" style="margin-top: 15px; font-weight: bold; cursor: pointer; border: none; padding: 10px 20px; border-radius: 5px;"><span class="start-icon"><i class="fa fa-info-circle"></i></span>intro</button>
+        <button id="start-btn" style="margin-top: 15px; font-weight: bold; cursor: pointer; background-color: #7E1AE3; color: white; border: none; padding: 10px 20px; border-radius: 5px;"><span class="start-icon"><i class="fa fa-grip"></i></span>woordenlijst</button>
+        <button id="l-1" style="margin-top: 15px; font-weight: bold; cursor: pointer"><span class="level-icon"><i class="fa fa-cube"></i></span>level 1</button>
+        <button id="l-2" style="margin-top: 15px; font-weight: bold; cursor: pointer"><span class="level-icon"><i class="fa fa-cube"></i><i class="fa fa-cube"></i></span>level 2</button>
+        <button id="l-3" style="margin-top: 15px; font-weight: bold; cursor: pointer"><span class="level-icon"><i class="fa fa-cube"></i><i class="fa fa-cube"></i><i class="fa fa-cube"></i></span>level 3</button>
+    </div>
+    <!-- <button style="margin-top: 15px; font-weight: bold; cursor: pointer">STARTEN</button> -->
+</div>
+
+<script>
+    // Remove any green check badges (from cache or elsewhere) – we no longer show them
+    (function () {
+        var ids = ['start-btn', 'l-1', 'l-2', 'l-3'];
+        for (var i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (el) {
+                var badges = el.querySelectorAll('.badge-check');
+                for (var j = 0; j < badges.length; j++) badges[j].remove();
+            }
+        }
+    })();
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+        // Navigate to the woordenlijst page
+        for (var i = 0; i < x_pageInfo.length; i++) {
+            var pageType = x_pageInfo[i].type ? x_pageInfo[i].type.toLowerCase() : '';
+            var pageXML = x_pages[i];
+            var tagName = '';
+            if (pageXML && typeof pageXML.tagName !== 'undefined') {
+                tagName = pageXML.tagName.toLowerCase();
+            }
+            
+            // Find woordenLijstExtended or woordenLijstCustom page
+            if (pageType === 'woordenlijstextended' || pageType === 'woordenlijst extended' || 
+                pageType === 'woordenlijstcustom' || pageType === 'woordenlijst custom' ||
+                tagName === 'woordenlijstextended' || tagName === 'woordenlijstcustom') {
+                x_changePage(i);
+                return;
+            }
+        }
+    });
+
+    // 'intro' button: go back to the first slide (prefer first normal page)
+    (function(){
+        var intro = document.getElementById('intro-btn');
+        if (intro) {
+            intro.addEventListener('click', function(e){
+                e.preventDefault();
+                try {
+                    if (typeof x_changePage === 'function') {
+                        if (typeof x_normalPages !== 'undefined' && x_normalPages && x_normalPages.length) {
+                            x_changePage(x_normalPages[0]);
+                        } else {
+                            x_changePage(0);
+                        }
+                    } else {
+                        // fallback: go to hash for first page
+                        window.location.hash = '';
+                    }
+                } catch(err) {
+                    console.warn('intro button navigation failed', err);
+                }
+            });
+        }
+    })();
+
+    function clearCurrentLevelStats() {
+        try {
+            var key = 'wt:currentLevelStats:' + (location.pathname || '') + (location.search || '');
+            localStorage.setItem(key, '{}');
+        } catch (e) {}
+    }
+
+    // Create a reusable modal for level info (created once)
+    (function() {
+        const modalHtml = '\n            <div id="levelModal" class="level-modal" style="display:none; position:fixed; z-index:10000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">\n                <div class="level-modal-content" style="background:#fff; padding:1.25rem; border-radius:10px; max-width:520px; width:92%; box-shadow:0 12px 30px rgba(0,0,0,0.25);">\n                    <h3 id="levelModalTitle" style="margin-top:0;color:#7E1AE3;">Niveau</h3>\n                    <div id="levelModalBody" style="margin:0.5rem 0 1rem 0;color:#333;line-height:1.4;"></div>\n                    <div style="display:flex;justify-content:center;gap:0.5rem;">\n                        <button id="levelModalStart" style="background:#7E1AE3;color:#fff;border:none;padding:0.6rem 1.2rem;border-radius:6px;cursor:pointer;font-weight:bold;">start</button>\n                        <button id="levelModalCancel" style="background:#eee;color:#333;border:none;padding:0.6rem 1.2rem;border-radius:6px;cursor:pointer;">annuleren</button>\n                    </div>\n                </div>\n            </div>\n        ';
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const levelModal = document.getElementById('levelModal');
+        const levelModalTitle = document.getElementById('levelModalTitle');
+        const levelModalBody = document.getElementById('levelModalBody');
+        const levelModalStart = document.getElementById('levelModalStart');
+        const levelModalCancel = document.getElementById('levelModalCancel');
+
+        // close when clicking overlay (but not when clicking content)
+        levelModal.addEventListener('click', function(e) {
+            if (e.target === levelModal) {
+                levelModal.style.display = 'none';
+            }
+        });
+
+        levelModalCancel.addEventListener('click', function() { levelModal.style.display = 'none'; });
+
+        function navigateToLevel(level) {
+            // replicate previous logic for regeneration/navigation
+            if (typeof x_autoGenerateMode !== 'undefined' && x_autoGenerateMode && typeof x_virtualPages !== 'undefined' && x_virtualPages.length > 0) {
+                if (typeof x_regenerateLevelExercises === 'function') {
+                    x_regenerateLevelExercises(level);
+                }
+                clearCurrentLevelStats();
+
+                for (var i = 0; i < x_virtualPages.length; i++) {
+                    if (x_virtualPages[i].level === level && x_virtualPages[i].type !== 'levelCompletion') {
+                        var baseIndex = x_pageInfo.length - x_virtualPages.length;
+                        x_changePage(baseIndex + i);
+                        return;
+                    }
+                }
+            }
+            window.location.hash = 'level-' + level;
+        }
+
+        // When start is clicked in modal, navigate to selected level
+        let pendingLevel = 1;
+        levelModalStart.addEventListener('click', function() {
+            levelModal.style.display = 'none';
+            navigateToLevel(pendingLevel);
+        });
+
+        // helper to show modal with content per level
+        window.showLevelModal = function(level) {
+            pendingLevel = level;
+            const titles = {
+                1: 'Level 1: herkennen en uitspreken',
+                2: 'Level 2: begrijpen van de betekenis ',
+                3: 'Level 3: toepassen in contextrijke situaties'
+            };
+            const bodies = {
+                1: 'Op level 1 oefen je met het herkennen en uitspreken van woorden. Je krijgt de woorden op verschillende manieren aangeboden.',
+                2: 'Op level 2 doe je opdrachten waarbij je de betekenis van woorden gaat begrijpen.',
+                3: 'Op level 3 doe je opdrachten waarbij het moeilijker wordt om de juiste betekenis te kiezen. Tip: hou de woordenlijst bij de hand als je dit level gaat oefenen!'
+            };
+            levelModalTitle.textContent = titles[level] || ('Level ' + level);
+            levelModalBody.textContent = bodies[level] || '';
+            levelModal.style.display = 'flex';
+            // focus start button for keyboard users
+            setTimeout(() => levelModalStart.focus(), 50);
+        };
+
+        // attach click handlers to buttons to open modal
+        var attachModalOpener = function(id, level) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.showLevelModal(level);
+                });
+            }
+        };
+
+        attachModalOpener('l-1', 1);
+        attachModalOpener('l-2', 2);
+        attachModalOpener('l-3', 3);
+    })();
+
+</script>

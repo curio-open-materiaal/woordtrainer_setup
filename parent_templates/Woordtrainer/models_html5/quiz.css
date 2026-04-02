@@ -1,0 +1,207 @@
+/* Modern quiz layout */
+
+body {
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	background-color: #f9f9f9;
+	color: #333;
+}
+
+.qPanel {
+	overflow: auto;
+	padding: 1em;
+	background-color: #fff;
+	border-radius: 12px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#mainPanel {
+	width: 80%;
+	margin: 0 auto;
+	overflow: auto;
+	position: relative;
+	padding: 1em;
+	background-color: #fff;
+	border-radius: 10px;
+	box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+}
+
+#qNo {
+	font-weight: bold;
+	font-size: 1.2em;
+	color: #444;
+	margin-bottom: 1em;
+}
+
+#qTxt {
+	width: 100%;
+	font-size: 1.1em;
+	margin-bottom: 1em;
+}
+
+#optionHolder {
+	margin: 1.5em 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1em;
+}
+
+#optionHolder .optionGroup {
+	padding: 0.75em 1em;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	transition: background-color 0.2s, border-color 0.2s;
+	background-color: #fafafa;
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+}
+
+#optionHolder .optionGroup:hover {
+	background-color: #f0f8ff;
+	border-color: #aaa;
+}
+
+#pageContents input[type="radio"],
+#pageContents input[type="checkbox"] {
+	margin-right: 1em;
+	transform: scale(1.2);
+	cursor: pointer;
+}
+
+#pageContents .optionTxt {
+	cursor: pointer;
+	position: relative;
+	display: block;
+	font-size: 1em;
+	user-select: none;
+}
+
+#buttonHolder {
+	display: flex;
+	justify-content: flex-end;
+	gap: 1em;
+	margin: 1.5em 0;
+}
+
+#buttonHolder button {
+	background-color: #007bff;
+	border: none;
+	border-radius: 6px;
+	padding: 0.6em 1.2em;
+	color: white;
+	font-size: 1em;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+#buttonHolder button:disabled {
+	background-color: #ccc;
+	cursor: not-allowed;
+}
+
+#buttonHolder button:hover:not(:disabled) {
+	background-color: #0056b3;
+}
+
+#feedbackGroup {
+	clear: both;
+	margin-top: 2em;
+	padding-top: 1em;
+	border-top: 1px solid #ddd;
+}
+
+#feedbackGroup h3 {
+	font-size: 1.2em;
+	margin-bottom: 1em;
+	color: #444;
+}
+
+.feedbackBlock {
+	margin-bottom: 1em;
+	font-size: 1em;
+	background-color: #f5f5f5;
+	padding: 0.75em 1em;
+	border-radius: 6px;
+}
+
+#questionAudio {
+	clear: both;
+	margin-bottom: 1em;
+}
+
+#infoHolder .qImgHolder,
+#textHolder .quizImg {
+	padding: 0.5em;
+	max-width: 100%;
+	display: block;
+	margin: 1em auto;
+	border-radius: 8px;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alert {
+	color: #b94a48;
+	background-color: #f2dede;
+	padding: 1em;
+	border-radius: 6px;
+	border: 1px solid #ebccd1;
+}
+
+#mainPanel {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2em;
+	padding: 1em;
+}
+
+#questionSection {
+	flex: 1 1 45%;
+	min-width: 300px;
+}
+
+#answersSection {
+	flex: 1 1 45%;
+	min-width: 300px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+#optionHolder {
+	margin-top: 1em;
+	display: flex;
+	flex-direction: column;
+	gap: 1em;
+}
+
+#qTxt {
+	font-size: 1.1em;
+	margin-bottom: 1em;
+}
+
+#questionAudio {
+	margin-bottom: 1em;
+}
+
+#qNo {
+	margin-bottom: 1em;
+}
+
+#buttonHolder {
+	margin-top: 2em;
+	justify-content: flex-start;
+}
+
+#feedbackGroup {
+	margin-top: 2em;
+}
+
+.qImgHolder img {
+	max-width: 300px;
+	margin: 0 auto;
+	display: block;
+}
+
+#questionSection {
+	text-align: center;
+}

@@ -1,0 +1,221 @@
+/* flashCards.html */
+	
+	#x_pageHolder {
+		overflow-x: hidden;
+	}
+	
+	h3 {
+		padding: 4px;
+	}
+	
+	#textHolder {
+		margin-bottom: 2em;
+	}
+	
+	#cardHolder, #cardCtrls {
+		display: table;
+	}
+	
+	#cardHolder {
+		width: 100%;
+		height: 1px;
+		min-height: 72.5%;
+	}
+	
+	#cardCtrls {
+		width: 100%;
+		height: 100%;
+	}
+	
+	.btnHolder, #cards {
+		display: table-cell;
+		vertical-align: middle;
+		text-align: center;
+	}
+	
+	#cards .card {
+		vertical-align: top;
+		margin-top: 1em;
+		margin-bottom: 1em;
+	}
+	
+	#pageContents:not(.horiz) #cards.small .card {
+		max-width: 50%;
+	}
+	
+	#pageContents:not(.horiz) #cards.medium .card {
+		max-width: 70%;
+	}
+	
+	#pageContents:not(.horiz) #cards.large .card {
+		max-width: 90%;
+	}
+	
+	#pageContents.displaySingle .card, #pageContents.displayMultiple.vert .card {
+		margin-left: auto;
+		margin-right: auto;
+	}
+	
+	#pageContents.displayMultiple.horiz #cardHolder, #pageContents.displayMultiple.horiz #cards {
+		display: block;
+	}
+	
+	#pageContents.displayMultiple.horiz #cardCtrls {
+		display: inline-block;
+		width: 100%;
+		height: auto;
+	}
+	
+	#pageContents.displayMultiple.horiz #cards {
+		width: auto;
+		margin: 0 auto;
+		height: 100%;
+		overflow: hidden;
+		white-space: nowrap;
+	}
+	
+	#pageContents.displayMultiple.horiz #cards .card {
+		display: inline-block;
+		margin: 1em 1em 1em 1em;
+		white-space: normal;
+	}
+	
+	#pageContents.displayMultiple.horiz #leftBtn {
+		float: left;
+		z-index: 5;
+	}
+	
+	#pageContents.displayMultiple.horiz #rightBtn {
+		float: right;
+	}
+	
+	.card .panel {
+		padding: 0em;
+		text-align: left;
+	}
+	
+	.card:not(.fitHeight) .panel {
+		width: auto !important;
+		height: auto !important;
+	}
+	
+	.cardInner {
+		overflow: auto;
+		backface-visibility: hidden;
+		margin: 1em 1em 0;
+		height: calc(100% - 2.4em /* flip button height offset */ - 1em /* card-inner margin offset */ );
+
+	}
+	
+	#cards.hideOverflow .cardInner {
+		overflow: hidden;
+	}
+	
+	#leftBtn {
+		text-align: right;
+	}
+	
+	#rightBtn {
+		text-align: left;
+	}	
+	
+	.btnHolder button {
+		background: none;
+		border: none;
+		width: 3em;
+		height: 3em;
+		margin: 1em;
+	}
+	
+	.btnHolder button .ui-icon {
+		width: 100% !important;
+		height: 100% !important;
+		margin: 0 !important;
+		font-size: 3em;
+		position: absolute;
+		top: 0;
+		left: 0;
+		background-position: 0;
+	}
+	
+	#cardCtrls .btnHolder button {
+		color: #434343;
+		background: none;
+		cursor: pointer;
+	}
+	
+	#cardCtrls .btnHolder button:hover, #cardCtrls .btnHolder button:focus { color: #666666; }
+	#cardCtrls .btnHolder button:active { color: #FF9900; }
+	
+	button.flipBtn.ui-button-icon-only .ui-icon[class*=" fa-"] {
+		margin-left: -0.5em;
+	}
+	
+	.flipBtnHolder {
+		width: 100%;
+		text-align: center;
+		margin: 0.5em 0;
+		position: absolute;
+		bottom: 0;
+	}
+	
+	.emptyDiv {
+		height: 4em;
+	}
+    .flipBtn{
+	z-index: 1;
+    }
+	
+	#cardNoHolder {
+		display: table-row;
+		height: 1px;
+		vertical-align: middle;
+		text-align: center;
+	}
+	
+	#cardNoTxt {
+		display: table-cell;
+		vertical-align: middle;
+		font-weight: bold;
+	}
+	
+	.mediaHolder {
+		text-align: center;
+	}
+	
+	.mediaHolder.cardVideo, .mediaHolder.cardAudio {
+		width: 100%;
+		margin: 0.5em auto;
+	}
+	
+	iframe.mediaHolder {
+		width: 98%;
+		height: 100%;
+		margin-top: 0.5em;
+		margin-bottom: 0.5em;
+	}
+	
+	.mediaHolder img {
+		max-width: 100%; 
+		margin-top: 0.5em;
+		margin-bottom: 0.5em;
+	}
+	
+	.ui-effects-wrapper {
+		overflow: visible !important;
+	}
+	.flex {
+		display: flex;
+		flex-direction: column;
+		height: calc(100% - 2.4em /* flip button height offset */ - 1em /* card-inner margin offset */ );
+	}
+
+	.flashcard-icon {
+		position: absolute;
+		bottom: 8px;
+		right: 8px;
+		font-size: 2rem;
+		opacity: 0.6;
+		pointer-events: none;
+		z-index: 10;
+	}

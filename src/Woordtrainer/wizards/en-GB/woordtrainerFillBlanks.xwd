@@ -1,0 +1,33 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <woordtrainerFillBlanks><![CDATA[
+        <woordtrainerFillBlanks name="Vul de zinnen aan"
+          text="Kies het juiste woord om de zin te voltooien."
+          sentence="De docent legde de leerstof van dit hoofdstuk goed uit."
+          correctWord="leerstof"
+          typingMode=""
+          distractors="bladzijde,pagina,werkstuk"/>
+      ]]></woordtrainerFillBlanks>
+    </newNodes>
+  </pageWizard>
+
+  <woordtrainerFillBlanks
+    menu="Woordtrainer"
+    menuItem="Vulzinnen" 
+    hint="Kies het juiste woord uit 4 opties om de zin te voltooien."
+    icon="icTextEntry"
+    thumb="thumbs/gapFill.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <text label="Introductie of instructie" type="TextArea" height="100"/>
+    <sentence label="Volledige zin" type="TextArea" height="100"/>
+    <correctWord label="Correct woord (wordt weggelaten uit zin)" type="TextInput"/>
+    <distractors label="Afleidwoorden (kommagescheiden, bijv: woord1,woord2,woord3)" type="TextInput"/>
+    <typingMode label="Zelf woord typen" type="Checkbox"/>
+    
+  </woordtrainerFillBlanks>
+</wizard>
+
+

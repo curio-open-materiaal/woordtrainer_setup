@@ -1,0 +1,993 @@
+<style>
+    #wordListContainer {
+        max-width: 1000px;
+        padding: 1em 2em;
+        margin: 0 auto;
+        border-radius: 16px;
+        box-sizing: border-box;
+    }
+
+    .titles {
+        text-align: center;
+        max-width: 1000px;
+        margin: 0 auto 0 auto;
+        padding: 0 1em;
+        box-sizing: border-box;
+        position: relative;
+        z-index: 1;
+    }
+
+    .titles h3 {
+        /* font-size: 1.5em !important; */
+        padding: 0px;
+        /* margin: 0 0 0.5em 0; */
+        line-height: 1.3;
+    }
+
+    .subtitle {
+        /* font-size: 1.1em; */
+        color: #666;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .wordList {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5em 2em;
+        justify-items: center;
+        text-align: center;
+        padding: 0 1em;
+        box-sizing: border-box;
+    }
+
+    .wordList p {
+        margin: 0;
+        /* font-size: 1.2em; */
+        color: #222;
+        border: 1px solid #ccc;
+        width: 100%;
+        max-width: 200px;
+        /* text-transform will be set dynamically based on whether it's a sentence */
+        padding: 15px 10px;
+        border-radius: 12px;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+        cursor: pointer;
+        user-select: none;
+        box-sizing: border-box;
+        word-wrap: break-word;
+        hyphens: auto;
+    }
+    
+    /* Compact mode for many words (5+ rows = 20+ words with 4 columns) */
+    .wordList.compact {
+        gap: 1em 1.5em;
+    }
+    
+    .wordList.compact p {
+        padding: 12px 10px;
+        font-size: 0.98em;
+        max-width: 190px;
+    }
+
+    .wordList p:hover {
+        background-color: #f5f0ff;
+        border-color: #7E1AE3;
+    }
+
+    /* Remove click scale animation to match other modules */
+    .wordList p.clicked { animation: none; }
+
+    /* Progress info badge */
+    .progress-info-badge {
+        position: absolute;
+        bottom: 3px;
+        right: 3px;
+        width: 20px;
+        height: 20px;
+        background: rgba(255,255,255,0.9);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #666;
+        cursor: pointer;
+        z-index: 2;
+    }
+    .progress-info-badge:hover {
+        background: #fff;
+        color: #7E1AE3;
+    }
+
+    /* Tablet Responsive */
+    @media (max-width: 900px) {
+        #wordListContainer {
+            padding: 2.5em 1.5em !important;
+        }
+        
+        .titles {
+            padding: 0 1.5em !important;
+        }
+        
+        .titles h3 {
+            margin-top: 70px;
+            /* font-size: 1.4em !important; */
+        }
+        
+        .subtitle {
+            font-size: 1.05em !important;
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+            gap: 1.2em 1.5em !important;
+            padding: 0 1.5em !important;
+        }
+        
+        .wordList p {
+            /* font-size: 1.15em !important; */
+            padding: 14px 8px !important;
+            max-width: 180px !important;
+        }
+    }
+
+    /* Mobile Landscape */
+    @media (max-width: 768px) {
+        #wordListContainer {
+            padding: 2em 1em;
+        }
+        
+        .titles {
+            padding: 0 1em;
+            margin-bottom: 1.5em;
+        }
+        
+        .titles h3 {
+
+            /* font-size: 1.3em !important; */
+        }
+        
+        .subtitle {
+            /* font-size: 1em; */
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1em 1.2em;
+            padding: 0 1em;
+        }
+        
+        .wordList p {
+            /* font-size: 1.1em; */
+            padding: 12px 8px;
+            max-width: 160px;
+        }
+    }
+
+    /* Mobile Portrait */
+    @media (max-width: 600px) {
+        #wordListContainer {
+            padding: 1em 0.8em;
+        }
+        
+        .titles {
+            padding: 0 0.8em;
+            margin-bottom: 1.2em;
+        }
+        
+        .titles h3 {
+            /* font-size: 1.2em !important; */
+        }
+        
+        .subtitle {
+            font-size: 0.95em;
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.8em 1em;
+            padding: 0 0.8em;
+        }
+        
+        .wordList p {
+            /* font-size: 1em; */
+            padding: 10px 6px;
+            max-width: 140px;
+            border-width: 2px;
+        }
+    }
+
+    /* Small Mobile */
+    @media (max-width: 480px) {
+        #wordListContainer {
+            padding: 1.2em 0.5em;
+        }
+        
+        .titles {
+            padding: 0 0.5em;
+            margin-bottom: 1em;
+        }
+        
+        .titles h3 {
+            /* font-size: 1.1em !important; */
+        }
+        
+        .subtitle {
+            /* font-size: 0.9em; */
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.6em 0.8em;
+            padding: 0 0.5em;
+        }
+        
+        .wordList p {
+            /* font-size: 0.95em; */
+            padding: 8px 4px;
+            max-width: 120px;
+            border-width: 2px;
+        }
+    }
+
+    /* Extra Small Mobile */
+    @media (max-width: 360px) {
+        #wordListContainer {
+            padding: 1em 0.3em;
+        }
+        
+        .titles {
+            padding: 0 0.3em;
+        }
+        
+        .titles h3 {
+            /* font-size: 1em !important; */
+        }
+        
+        .subtitle {
+            font-size: 0.85em;
+        }
+        
+        .wordList {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5em 0.6em;
+            padding: 0 0.3em;
+        }
+        
+        .wordList p {
+            /* font-size: 0.9em; */
+            padding: 6px 3px;
+            max-width: 100px;
+            border-width: 1px;
+        }
+    }
+
+    /* Ensure grid doesn't break on very small screens */
+    @media (max-width: 320px) {
+        .wordList {
+            grid-template-columns: 1fr;
+            gap: 0.8em;
+        }
+        
+        .wordList p {
+            max-width: 200px;
+            width: 100%;
+        }
+    }
+
+    .print-button,
+    .progress-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: bold;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .print-button i,
+    .progress-button i {
+        font-size: 1.1em;
+    }
+    .print-button:hover,
+    .progress-button:hover {
+        background-color: #6a16c7;
+    }
+    .woordenlijst-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        margin: 2rem auto 0;
+    }
+    .print-button,
+    .progress-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+    }
+    .print-button i,
+    .progress-button i {
+        font-size: 1.1em;
+    }
+    /* Voortgang modal (algemeen) */
+    .progress-modal-woordenlijst {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        box-sizing: border-box;
+    }
+    .progress-modal-woordenlijst .progress-modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    .progress-modal-woordenlijst .progress-modal-box {
+        position: relative;
+        background: #fff;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 480px;
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    .progress-modal-woordenlijst .progress-modal-close {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #7E1AE3;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+    }
+    .progress-modal-woordenlijst .progress-modal-close:hover {
+        background-color: #6a16c7;
+        color: #fff;
+    }
+    .progress-modal-woordenlijst .progress-modal-title {
+        margin: 0 0 1rem 0;
+        font-size: 1.35rem;
+        color: #7E1AE3;
+    }
+    .progress-modal-woordenlijst .progress-table-wrap {
+        overflow-x: auto;
+        margin-top: 0.5rem;
+    }
+    .progress-modal-woordenlijst .progress-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+        text-align: left;
+    }
+    .progress-modal-woordenlijst .progress-table th,
+    .progress-modal-woordenlijst .progress-table td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+    .progress-modal-woordenlijst .progress-table th {
+        font-weight: 700;
+        color: #555;
+        text-transform: lowercase;
+    }
+    .progress-modal-woordenlijst .progress-table td.progress-word { color: #333; }
+    .progress-modal-woordenlijst .progress-table td.progress-good { color: #28a745; }
+    .progress-modal-woordenlijst .progress-table td.progress-wrong { color: #dc3545; }
+    .progress-modal-woordenlijst .progress-table td.progress-pct { color: #7E1AE3; font-weight: 600; }
+    .progress-modal-woordenlijst .progress-row { margin: 0.6rem 0; font-size: 1.05rem; color: #333; }
+</style>
+
+<script type="text/javascript">
+    var woordenLijst = new function () {
+        const SHOW_WORD_PROGRESS = true; // toggle to show/hide progress colors in list
+        
+        // Hoist helper functions to module scope so pageChanged can access them
+        const buildPracticeSummary = function() {
+            try {
+                const map = {};
+                const prefix = `wt:stats:${location.pathname}`;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (!key || !key.startsWith(prefix)) continue;
+                    let stats = {};
+                    try { stats = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) { stats = {}; }
+                    Object.values(stats).forEach(v => {
+                        const w = (v && v.word) ? String(v.word).trim().toLowerCase() : null;
+                        if (!w) return;
+                        const right = Number(v.rightCount || 0);
+                        const wrong = Number(v.wrongCount || (Array.isArray(v.wrong) ? v.wrong.length : 0));
+                        if (!map[w]) map[w] = { right: 0, wrong: 0 };
+                        map[w].right += isNaN(right) ? 0 : right;
+                        map[w].wrong += isNaN(wrong) ? 0 : wrong;
+                    });
+                }
+                return map;
+            } catch (e) { return {}; }
+        };
+        
+        const applyProgressToElement = function(p, practiceSummary) {
+            const key = p.textContent.trim().toLowerCase();
+            const stats = practiceSummary[key];
+            p.style.backgroundImage = '';
+            p.style.backgroundColor = '';
+            p.style.boxShadow = '';
+            p.removeAttribute('title');
+            const oldBadge = p.querySelector('.progress-info-badge');
+            if (oldBadge) oldBadge.remove();
+            
+            let colorType = 'none';
+            let hasEnoughData = false;
+            
+            if (stats) {
+                const total = stats.right + stats.wrong;
+                if (total >= 4) {
+                    hasEnoughData = true;
+                    const controlled = (stats.right >= 4 * Math.max(1, stats.wrong));
+                    const weak = (stats.wrong > stats.right);
+                    if (controlled) {
+                        p.style.backgroundColor = '#c8f7c5';
+                        p.style.boxShadow = 'inset 0 0 0 2px #28a74533';
+                        colorType = 'controlled';
+                    } else if (weak) {
+                        p.style.backgroundColor = '#f8d7da';
+                        p.style.boxShadow = 'inset 0 0 0 2px #dc354533';
+                        colorType = 'weak';
+                    } else {
+                        p.style.backgroundColor = '#ffe5b4';
+                        p.style.boxShadow = 'inset 0 0 0 2px #ff980033';
+                        colorType = 'learning';
+                    }
+                    p.style.transition = 'background 0.3s ease';
+                    p.title = `geoefend: ${total}x, goed: ${stats.right}, fout: ${stats.wrong}`;
+                }
+            }
+            
+            const badge = document.createElement('span');
+            badge.className = 'progress-info-badge';
+            badge.innerHTML = '<i class="fa fa-info-circle"></i>';
+            badge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showProgressModal(key, stats, colorType, hasEnoughData);
+            });
+            p.style.position = 'relative';
+            p.appendChild(badge);
+        };
+
+        this.pageChanged = function () {
+            // Called when navigating back to this page; refresh progress colors
+            try {
+                const summary = buildPracticeSummary();
+                document.querySelectorAll('.wordList p').forEach(p => applyProgressToElement(p, summary));
+            } catch(e) {}
+        };
+
+        this.init = function () {
+            // Initialize without speechSynthesis (using ElevenLabs)
+            Promise.resolve().then(() => {
+                const raw = x_currentPageXML.getAttribute('wordListText') || '';
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = raw;
+
+                const words = Array.from(tempDiv.querySelectorAll('p'))
+                    .map(p => p.textContent.trim())
+                    .filter(text => text.length > 0 && text !== '\u00A0');
+
+                document.getElementById('amount-words').textContent = words.length;
+
+                const container = document.getElementById('wordListContainer');
+                container.innerHTML = '';
+
+                if (words.length === 0) {
+                    container.innerHTML = "<p><em>Geen woorden beschikbaar.</em></p>";
+                    x_pageLoaded();
+                    return;
+                }
+
+                const div = document.createElement('div');
+                div.className = 'wordList';
+                
+                // Add compact class if many words (13+ words typically means 4+ rows)
+                if (words.length >= 13) {
+                    div.classList.add('compact');
+                }
+
+                // Use hoisted helper functions (defined at module scope)
+                function updateProgressBackgrounds() {
+                    if (!SHOW_WORD_PROGRESS) return; // disabled for now
+                    const summary = buildPracticeSummary();
+                    document.querySelectorAll('.wordList p').forEach(p => applyProgressToElement(p, summary));
+                }
+
+                words.forEach(word => {
+                    const p = document.createElement('p');
+                    p.textContent = word;
+                    
+                    // Apply text-transform lowercase only when it's not a sentence (no spaces)
+                    const isSentence = word.indexOf(' ') !== -1;
+                    if (!isSentence) {
+                        p.style.textTransform = 'lowercase';
+                    } else {
+                        p.style.textTransform = 'none';
+                    }
+
+                    p.addEventListener('click', () => {
+                        const cleanWord = word.replace(/\s*\(.*?\)\s*/g, '').trim();
+
+                        playText(cleanWord);
+
+                        // Pulse effect
+                        p.classList.remove('clicked');
+                        void p.offsetWidth;
+                        p.classList.add('clicked');
+                    });
+
+                    // Progress background based on practice stats
+                    // Initial apply; also updated on focus/visibility below
+                    // (applies after all words appended too)
+
+                    div.appendChild(p);
+                });
+
+                // After rendering, apply current progress, and set listeners for updates when returning to the page
+                window.addEventListener('focus', updateProgressBackgrounds, { passive: true });
+                document.addEventListener('visibilitychange', function() {
+                    if (document.visibilityState === 'visible') updateProgressBackgrounds();
+                }, { passive: true });
+                window.addEventListener('wt:statsUpdated', updateProgressBackgrounds, { passive: true });
+
+                container.appendChild(div);
+                
+                // Add print button
+                addPrintButton(words);
+                
+                // Poll progress updates 4 times over 4 seconds to ensure colors appear
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => updateProgressBackgrounds(), 50 + i * 1000);
+                }
+                
+                x_pageLoaded();
+            });
+        };
+
+        function escapeHtmlProgress(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        function openProgressModalWoordenlijst(words) {
+            var wordSet = {};
+            for (var i = 0; i < words.length; i++) {
+                var w = words[i];
+                var wordStr = (typeof w === 'string') ? w.trim() : ((w && w.word != null) ? String(w.word).trim() : '');
+                var k = wordStr.toLowerCase();
+                if (k && !wordSet[k]) wordSet[k] = wordStr;
+            }
+            var globalStatsData = {};
+            try {
+                globalStatsData = JSON.parse(localStorage.getItem('wt:globalWordStats') || '{}');
+            } catch (e) {}
+            var byWordAll = {};
+            for (var gk in globalStatsData) {
+                if (globalStatsData.hasOwnProperty(gk)) {
+                    var g = globalStatsData[gk];
+                    byWordAll[gk] = {
+                        word: wordSet[gk] || gk,
+                        right: (g && typeof g.right === 'number') ? g.right : 0,
+                        wrong: (g && typeof g.wrong === 'number') ? g.wrong : 0
+                    };
+                }
+            }
+            for (var k in wordSet) {
+                if (wordSet.hasOwnProperty(k) && !byWordAll[k]) {
+                    byWordAll[k] = { word: wordSet[k], right: 0, wrong: 0 };
+                } else if (byWordAll[k] && wordSet[k]) {
+                    byWordAll[k].word = wordSet[k];
+                }
+            }
+            var wordsForTable = [];
+            for (var k in wordSet) {
+                if (wordSet.hasOwnProperty(k)) {
+                    wordsForTable.push({
+                        word: wordSet[k],
+                        allRight: (byWordAll[k] && byWordAll[k].right) || 0,
+                        allWrong: (byWordAll[k] && byWordAll[k].wrong) || 0
+                    });
+                }
+            }
+            if (wordsForTable.length === 0) {
+                for (var k in byWordAll) {
+                    if (byWordAll.hasOwnProperty(k)) {
+                        wordsForTable.push({
+                            word: byWordAll[k].word,
+                            allRight: byWordAll[k].right || 0,
+                            allWrong: byWordAll[k].wrong || 0
+                        });
+                    }
+                }
+            }
+            wordsForTable.sort(function(a, b) { return a.word.localeCompare(b.word, 'nl'); });
+            function renderTable() {
+                var h = '<div class="progress-table-wrap"><table class="progress-table">' +
+                    '<thead><tr><th>woord</th><th>goed</th><th>fout</th><th>totaal</th><th>%</th></tr></thead><tbody>';
+                for (var i = 0; i < wordsForTable.length; i++) {
+                    var w = wordsForTable[i];
+                    var right = w.allRight || 0;
+                    var wrong = w.allWrong || 0;
+                    var total = right + wrong;
+                    var pct = total > 0 ? Math.round((right / total) * 100) : '-';
+                    h += '<tr><td class="progress-word">' + escapeHtmlProgress(w.word) + '</td>' +
+                        '<td class="progress-good">' + right + '</td>' +
+                        '<td class="progress-wrong">' + wrong + '</td>' +
+                        '<td>' + total + '</td>' +
+                        '<td class="progress-pct">' + pct + (total > 0 ? '%' : '') + '</td></tr>';
+                }
+                h += '</tbody></table></div>';
+                return h;
+            }
+            var modal = document.getElementById('progressModalWoordenlijst');
+            var content = document.getElementById('progressModalContentWoordenlijst');
+            if (!modal || !content) return;
+            var html = '<h3 class="progress-modal-title">Voortgang per woord (algemeen)</h3>';
+            if (wordsForTable.length === 0) {
+                html += '<p class="progress-row">Geen voortgang nog. Maak oefeningen om je resultaten te zien.</p>';
+            } else {
+                html += renderTable();
+            }
+            content.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+        window.wtCloseProgressModal = function() {
+            var m = document.getElementById('progressModalWoordenlijst');
+            if (m) m.style.display = 'none';
+        };
+
+        function addPrintButton(words) {
+            const container = document.getElementById('wordListContainer');
+            
+            // Check if there's any progress data to reset
+            let hasProgressData = false;
+            try {
+                const pathQuery = (location.pathname || '') + (location.search || '');
+                const statsPrefix = `wt:stats:${pathQuery}`;
+                const donePrefix = `wt:done:${pathQuery}`;
+                const currentLevelPrefix = `wt:currentLevelStats:${pathQuery}`;
+                const progressKey = 'xerte_progress_' + (typeof x_TemplateId !== 'undefined' ? x_TemplateId : 'default');
+                if (localStorage.getItem('wt:globalWordStats')) hasProgressData = true;
+                if (localStorage.getItem(currentLevelPrefix)) hasProgressData = true;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith(statsPrefix) || key.startsWith(donePrefix) || key === progressKey)) {
+                        hasProgressData = true;
+                        break;
+                    }
+                }
+            } catch(e) {}
+            
+            // Only show reset button if there's data
+            if (hasProgressData) {
+                const resetBtn = document.createElement('button');
+                resetBtn.id = 'resetProgressBtn';
+                resetBtn.innerHTML = '<i class="fa fa-rotate-left"></i>';
+                resetBtn.title = 'Reset voortgang';
+                resetBtn.style.cssText = 'position:absolute;top:10px;right:10px;width:36px;height:36px;padding:0;background-color:#dc3545;color:white;border:none;border-radius:50%;cursor:pointer;transition:background-color 0.3s ease;display:flex;align-items:center;justify-content:center;font-size:16px;z-index:10;';
+                resetBtn.addEventListener('click', () => {
+                    if (confirm('Weet je het zeker? Alle voortgang wordt gewist.')) {
+                        try {
+                            const pathQuery = (location.pathname || '') + (location.search || '');
+                            const statsPrefix = `wt:stats:${pathQuery}`;
+                            const donePrefix = `wt:done:${pathQuery}`;
+                            const currentLevelPrefix = `wt:currentLevelStats:${pathQuery}`;
+                            const progressKey = 'xerte_progress_' + (typeof x_TemplateId !== 'undefined' ? x_TemplateId : 'default');
+                            const keysToRemove = [];
+                            if (localStorage.getItem('wt:globalWordStats')) keysToRemove.push('wt:globalWordStats');
+                            if (localStorage.getItem(currentLevelPrefix)) keysToRemove.push(currentLevelPrefix);
+                            for (let i = 0; i < localStorage.length; i++) {
+                                const key = localStorage.key(i);
+                                if (key && (key.startsWith(statsPrefix) || key.startsWith(donePrefix) || key === progressKey)) {
+                                    keysToRemove.push(key);
+                                }
+                            }
+                            keysToRemove.forEach(k => localStorage.removeItem(k));
+                            // Refresh display and hide button
+                            updateProgressBackgrounds();
+                            resetBtn.remove();
+                        } catch(e) {}
+                    }
+                });
+                resetBtn.addEventListener('mouseenter', () => resetBtn.style.backgroundColor = '#c82333');
+                resetBtn.addEventListener('mouseleave', () => resetBtn.style.backgroundColor = '#dc3545');
+                
+                container.style.position = 'relative';
+                container.appendChild(resetBtn);
+            }
+            
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'woordenlijst-actions';
+            const printBtn = document.createElement('button');
+            printBtn.id = 'printWordsBtn';
+            printBtn.className = 'print-button';
+            printBtn.innerHTML = '<i class="fa fa-print" aria-hidden="true"></i> print woordenlijst';
+            printBtn.addEventListener('click', () => printWordsList(words));
+            actionsDiv.appendChild(printBtn);
+            const progressBtn = document.createElement('button');
+            progressBtn.id = 'progressWordsBtn';
+            progressBtn.className = 'progress-button';
+            progressBtn.innerHTML = '<i class="fa fa-chart-simple" aria-hidden="true"></i> bekijk voortgang';
+            progressBtn.addEventListener('click', () => openProgressModalWoordenlijst(words));
+            actionsDiv.appendChild(progressBtn);
+            container.appendChild(actionsDiv);
+        }
+
+        function printWordsList(words) {
+            // Create print window
+            const printWindow = window.open('', '_blank');
+            
+            // Get project title for the print
+            const projectTitle = document.querySelector('h1') ? document.querySelector('h1').textContent : 'Woordtrainer';
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Woordenlijst - ${projectTitle}</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            margin: 0;
+                            padding: 40px 30px 20px 30px;
+                            color: #333;
+                            box-sizing: border-box;
+                        }
+                        * {
+                            box-sizing: border-box;
+                        }
+                        .print-header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            border-bottom: 2px solid #7E1AE3;
+                            padding-bottom: 20px;
+                        }
+                        .print-header h1 {
+                            color: #7E1AE3;
+                            margin: 0 0 10px 0;
+                            font-size: 24px;
+                        }
+                        .print-header p {
+                            margin: 0;
+                            color: #666;
+                            font-size: 14px;
+                        }
+                        .words-table {
+                            width: 100%;
+                            max-width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 40px;
+                            box-sizing: border-box;
+                        }
+                        .words-table th {
+                            background-color: #7E1AE3;
+                            color: white;
+                            padding: 12px;
+                            text-align: left;
+                            font-weight: bold;
+                        }
+                        .words-table td {
+                            border: 1px solid #ddd;
+                            border-right: 1px solid #ddd;
+                            padding: 12px;
+                            vertical-align: top;
+                        }
+                        .words-table tr:nth-child(even) {
+                            background-color: #f9f9f9;
+                        }
+                        .number-cell {
+                            font-weight: bold;
+                            font-size: 16px;
+                            width: 10%;
+                            text-align: center;
+                            background-color: #f0e6ff;
+                        }
+                        .word-cell {
+                            font-weight: bold;
+                            font-size: 16px;
+                            width: 30%;
+                        }
+                        .notes-cell {
+                            width: 60%;
+                            min-height: 40px;
+                        }
+                        .print-footer {
+                            text-align: center;
+                            margin-top: 40px;
+                            padding-top: 20px;
+                            border-top: 2px solid #7E1AE3;
+                        }
+                        .print-footer p {
+                            margin: 10px 0;
+                            color: #7E1AE3;
+                            font-weight: bold;
+                        }
+                        .logos {
+                            position: fixed;
+                            bottom: 20px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            gap: 15px;
+                            z-index: 1000;
+                        }
+                        .logo {
+                            height: 25px;
+                            width: auto;
+                        }
+                        @media print {
+                            body { 
+                                margin: 0 !important; 
+                                padding: 40px 30px 20px 30px !important;
+                            }
+                            .print-header, .print-footer { page-break-inside: avoid; }
+                            .logos {
+                                position: fixed !important;
+                                bottom: 20px !important;
+                                left: 50% !important;
+                                transform: translateX(-50%) !important;
+                            }
+                            @page {
+                                margin: 0;
+                                size: A4;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <h1>woordenlijst</h1>
+                        <p>${projectTitle}</p>
+                    </div>
+                    
+                    <table class="words-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>woord</th>
+                                <th>aantekeningen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${words.map((word, index) => `
+                                <tr>
+                                    <td class="number-cell">${index + 1}</td>
+                                    <td class="word-cell">${word}</td>
+                                    <td class="notes-cell"></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    
+                   
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            
+            // Wait for content to load then print
+            printWindow.onload = function() {
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 500);
+            };
+        }
+
+        // loadVoices and setVoices removed - using ElevenLabs instead
+    };
+
+    function showProgressModal(word, stats, colorType, hasEnoughData) {
+        const modal = document.createElement('div');
+        modal.className = 'progress-modal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
+        
+        const content = document.createElement('div');
+        content.style.cssText = 'background:#fff;border-radius:12px;padding:1.5rem;max-width:400px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
+        
+        const close = document.createElement('button');
+        close.innerHTML = '&times;';
+        close.style.cssText = 'position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#666;';
+        close.addEventListener('click', () => modal.remove());
+        
+        const title = document.createElement('h3');
+        title.textContent = `Voortgang: ${word}`;
+        title.style.cssText = 'margin:0 0 1rem 0;text-align:center;color:#333;';
+        
+        let message = '';
+        if (!hasEnoughData) {
+            message = 'Doe meer opdrachten met dit woord om een score te krijgen.';
+        } else if (colorType === 'controlled') {
+            message = 'Je beheerst dit woord al goed!';
+        } else if (colorType === 'learning') {
+            message = 'Nog een paar oefeningen met dit woord en je beheerst het!';
+        } else {
+            message = 'Dit woord moet je nog even goed oefenen!';
+        }
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.style.cssText = 'background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:1rem;text-align:center;font-weight:500;color:#333;';
+        messageDiv.textContent = message;
+        
+        content.style.position = 'relative';
+        content.appendChild(close);
+        content.appendChild(title);
+        content.appendChild(messageDiv);
+        
+        // Always show stats if they exist (even if not enough data for color)
+        if (stats && (stats.right > 0 || stats.wrong > 0)) {
+            const statsDiv = document.createElement('div');
+            statsDiv.style.cssText = 'background:#f9f9f9;border-radius:8px;padding:1rem;margin-top:0;';
+            statsDiv.innerHTML = `
+                <p style="margin:0.25rem 0;"><strong>Totaal geoefend:</strong> ${stats.right + stats.wrong}×</p>
+                <p style="margin:0.25rem 0;"><strong>Goed:</strong> ${stats.right}</p>
+                <p style="margin:0.25rem 0;"><strong>Fout:</strong> ${stats.wrong}</p>
+            `;
+            content.appendChild(statsDiv);
+        }
+        
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+
+    woordenLijst.init();
+</script>
+
+<div id="pageContents">
+    <div class="titles">
+        <h3>Jouw <span id="amount-words"></span> nieuwe woorden.</h3>
+        <div class="subtitle">Klik op de woorden voor de juiste uitspraak.</div>
+    </div>
+    <div id="wordListContainer"></div>
+</div>
+
+<!-- Voortgang modal (algemeen) -zelfde als levelCompletion -->
+<div id="progressModalWoordenlijst" class="progress-modal-woordenlijst" style="display: none;" aria-hidden="true">
+    <div class="progress-modal-overlay" onclick="window.wtCloseProgressModal();"></div>
+    <div class="progress-modal-box">
+        <button type="button" class="progress-modal-close" onclick="window.wtCloseProgressModal();" aria-label="Sluiten">&times;</button>
+        <div id="progressModalContentWoordenlijst"></div>
+    </div>
+</div>
+

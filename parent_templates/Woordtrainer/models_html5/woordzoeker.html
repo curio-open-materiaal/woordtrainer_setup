@@ -1,0 +1,767 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+    var woordzoeker = new function () {
+        let correctWord = '';
+        let guessedLetters = [];
+        let showSpeaker = false;
+
+        // Strip HTML tags from text
+        function stripHtml(html) {
+            if (!html) return '';
+            const tmp = document.createElement('DIV');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        }
+
+        // Get words from woordenLijstExtended pages or (optioneel) custom word set
+        function getWordsFromProject() {
+            // Eerst kijken of er een Woordenlijst Custom-pagina is; alleen dan is de custom set toegestaan
+            let hasCustomWordPage = false;
+            try {
+                if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+                    for (let i = 0; i < x_pages.length; i++) {
+                        const pageXML = x_pages[i];
+                        if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+                        const tagNameCheck = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+                        if (tagNameCheck === 'woordenlijstcustom' || tagNameCheck === 'woordenlijst custom') {
+                            hasCustomWordPage = true;
+                            break;
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error('woordzoeker: error while detecting custom word pages:', e);
+            }
+
+            // Alleen als er een Woordenlijst Custom-pagina is, proberen we de custom word set te gebruiken
+            if (hasCustomWordPage && typeof window.wtGetCustomWordSet === 'function') {
+                const customSet = window.wtGetCustomWordSet();
+                if (customSet && customSet.length > 0) {
+                    // Return just the word strings from custom set
+                    return customSet.map(w => w.word || w);
+                }
+            }
+            
+            // Anders woorden ophalen uit woordenLijstExtended / woordenLijstCustom
+            const allWords = [];
+            
+            try {
+                // Loop through all pages in the project
+                if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+                    for (let i = 0; i < x_pages.length; i++) {
+                        const pageXML = x_pages[i];
+                        if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+                        
+                        // Check if this is a woordenLijstExtended or woordenLijstCustom page
+                        const tagName = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+                        if (tagName === 'woordenlijstextended' || tagName === 'woordenlijst extended' ||
+                            tagName === 'woordenlijstcustom' || tagName === 'woordenlijst custom') {
+                            const wordListText = pageXML.getAttribute('wordListText') || '';
+                            
+                            if (!wordListText || wordListText.trim() === '') continue;
+                            
+                            // Parse the text format (same as woordenLijstExtended.html)
+                            let wordBlocks = wordListText.split(/\n\s*\n/);
+                            
+                            if (wordBlocks.length === 1) {
+                                const allLines = wordListText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                wordBlocks = [];
+                                let currentBlock = [];
+                                
+                                allLines.forEach((line) => {
+                                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                                    const isNewWord = wordMatch && !line.toLowerCase().startsWith('contextzin');
+                                    
+                                    if (isNewWord && currentBlock.length > 0) {
+                                        wordBlocks.push(currentBlock.join('\n'));
+                                        currentBlock = [line];
+                                    } else {
+                                        currentBlock.push(line);
+                                    }
+                                });
+                                
+                                if (currentBlock.length > 0) {
+                                    wordBlocks.push(currentBlock.join('\n'));
+                                }
+                            }
+                            
+                            wordBlocks.forEach(block => {
+                                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                if (lines.length === 0) return;
+                                
+                                let word = '';
+                                
+                                lines.forEach(line => {
+                                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                                    if (wordMatch && !line.toLowerCase().startsWith('contextzin')) {
+                                        word = stripHtml(wordMatch[1].trim());
+                                    }
+                                });
+                                
+                                if (word) {
+                                    allWords.push(word);
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error getting words from project:', e);
+            }
+            
+            return allWords;
+        }
+
+        // Get full word data (word, betekenis, contextzin) from woordenLijstExtended pages or custom word set
+        function getWordDataFromProject(searchWord) {
+            if (!searchWord || !searchWord.trim()) return null;
+            
+            const normalizedSearchWord = searchWord.toLowerCase().trim();
+            
+            // First check custom word set
+            if (typeof window.wtGetCustomWordSet === 'function') {
+                const customSet = window.wtGetCustomWordSet();
+                if (customSet && customSet.length > 0) {
+                    const found = customSet.find(w => {
+                        const word = (w.word || w || '').trim().toLowerCase();
+                        return word === normalizedSearchWord;
+                    });
+                    if (found) {
+                        return {
+                            word: (found.word || found || '').trim(),
+                            betekenis: (found.betekenis || found.meaning || '').trim(),
+                            contextzinExpliciet: (found.contextzinExpliciet || found.contextzinExpliciet || '').trim(),
+                            contextzinImpliciet: (found.contextzinImpliciet || found.contextzinImpliciet || '').trim()
+                        };
+                    }
+                }
+            }
+            
+            // Otherwise search in woordenLijstExtended pages
+            try {
+                // Loop through all pages in the project
+                if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+                    for (let i = 0; i < x_pages.length; i++) {
+                        const pageXML = x_pages[i];
+                        if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+                        
+                        // Check if this is a woordenLijstExtended or woordenLijstCustom page
+                        const tagName = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+                        if (tagName === 'woordenlijstextended' || tagName === 'woordenlijst extended' ||
+                            tagName === 'woordenlijstcustom' || tagName === 'woordenlijst custom') {
+                            const wordListText = pageXML.getAttribute('wordListText') || '';
+                            
+                            if (!wordListText || wordListText.trim() === '') continue;
+                            
+                            // Parse the text format
+                            let wordBlocks = wordListText.split(/\n\s*\n/);
+                            
+                            if (wordBlocks.length === 1) {
+                                const allLines = wordListText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                wordBlocks = [];
+                                let currentBlock = [];
+                                
+                                allLines.forEach((line) => {
+                                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                                    const isNewWord = wordMatch && !line.toLowerCase().startsWith('contextzin');
+                                    
+                                    if (isNewWord && currentBlock.length > 0) {
+                                        wordBlocks.push(currentBlock.join('\n'));
+                                        currentBlock = [line];
+                                    } else {
+                                        currentBlock.push(line);
+                                    }
+                                });
+                                
+                                if (currentBlock.length > 0) {
+                                    wordBlocks.push(currentBlock.join('\n'));
+                                }
+                            }
+                            
+                            for (let block of wordBlocks) {
+                                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                if (lines.length === 0) continue;
+                                
+                                let word = '';
+                                let betekenis = '';
+                                let contextzinImpliciet = '';
+                                let contextzinExpliciet = '';
+                                
+                                lines.forEach(line => {
+                                    const wordMatch = line.match(/^([^:]+):(.+)$/);
+                                    if (wordMatch && !line.toLowerCase().startsWith('contextzin')) {
+                                        word = stripHtml(wordMatch[1].trim());
+                                        betekenis = stripHtml(wordMatch[2].trim());
+                                    } else if (line.toLowerCase().startsWith('contextzin (i):')) {
+                                        contextzinImpliciet = stripHtml(line.substring(15).trim());
+                                    } else if (line.toLowerCase().startsWith('contextzin (e):')) {
+                                        contextzinExpliciet = stripHtml(line.substring(15).trim());
+                                    }
+                                });
+                                
+                                // Check if this is the word we're looking for
+                                if (word && word.toLowerCase().trim() === normalizedSearchWord) {
+                                    return {
+                                        word: word,
+                                        betekenis: betekenis,
+                                        contextzinImpliciet: contextzinImpliciet,
+                                        contextzinExpliciet: contextzinExpliciet
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error getting word data from project:', e);
+            }
+            
+            return null;
+        }
+
+        // Sound function for correct answers
+        function playSuccessSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+            }
+        }
+
+        function updateHangmanDisplay(hangmanEl) {
+            hangmanEl.innerHTML = '';
+            for (let i = 0; i < guessedLetters.length; i++) {
+                if (correctWord[i] === ' ') {
+                    const spaceSpan = document.createElement('span');
+                    spaceSpan.className = 'hangman-space';
+                    spaceSpan.setAttribute('aria-hidden', 'true');
+                    spaceSpan.innerHTML = '&nbsp;';
+                    hangmanEl.appendChild(spaceSpan);
+                } else {
+                    const slotSpan = document.createElement('span');
+                    slotSpan.className = 'hangman-slot';
+                    slotSpan.textContent = guessedLetters[i] || '\u00A0';
+                    hangmanEl.appendChild(slotSpan);
+                }
+            }
+        }
+
+        this.init = function () {
+            document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+            const wrapper = document.getElementById('bnwwrapper');
+            const intro = 'Bekijk het woord of de tekst en typ woord wat hierbij past.';
+            let originalWord = (x_currentPageXML.getAttribute('correctWord') || '').trim();
+            
+            // If no word provided, get random word from woordenLijstExtended
+            if (!originalWord || originalWord === '') {
+                const wordsFromList = getWordsFromProject();
+                if (wordsFromList && wordsFromList.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * wordsFromList.length);
+                    originalWord = wordsFromList[randomIndex];
+                }
+            }
+            
+            const wordCount = originalWord.trim().split(/\s+/).filter(w => w.length > 0).length;
+            const shouldBeLowercase = wordCount <= 2;
+            correctWord = shouldBeLowercase ? originalWord.toLowerCase() : originalWord;
+            showSpeaker = (x_currentPageXML.getAttribute('toonSpeaker') || 'false') === 'true';
+
+            guessedLetters = Array(correctWord.length).fill('').map((_, i) => {
+                return correctWord[i] === ' ' ? ' ' : '';
+            });
+            
+            const hangmanEl = wrapper.querySelector('#hangman');
+            if (hangmanEl && shouldBeLowercase) {
+                hangmanEl.style.textTransform = 'lowercase';
+            } else if (hangmanEl) {
+                hangmanEl.style.textTransform = 'none';
+            }
+            
+            const matchContainer = wrapper.querySelector('.matchContainer');
+            if (matchContainer) {
+                const imageContent = matchContainer.querySelector('.imageContent');
+                if (imageContent) {
+                    const paragraphs = imageContent.querySelectorAll('p, p span');
+                    paragraphs.forEach(el => {
+                        if (shouldBeLowercase) {
+                            el.style.textTransform = 'lowercase';
+                        } else {
+                            el.style.textTransform = 'none';
+                        }
+                    });
+                }
+                
+                const wnaItemBlock = matchContainer.querySelector('.wnaItemBlock');
+                if (wnaItemBlock) {
+                    const allTextElements = wnaItemBlock.querySelectorAll('p, span, div:not(.imageWrapper):not(.soundIcon)');
+                    allTextElements.forEach(el => {
+                        if (!el.closest('.imageContent') && el.textContent.trim()) {
+                            if (shouldBeLowercase) {
+                                el.style.textTransform = 'lowercase';
+                            } else {
+                                el.style.textTransform = 'none';
+                            }
+                        }
+                    });
+                }
+            }
+
+            const introTextEl = wrapper.querySelector('.introText');
+            if (introTextEl) {
+                introTextEl.innerHTML = x_addLineBreaks(intro);
+                // Add translation
+                if (typeof x_addTranslationUnder === 'function') {
+                    x_addTranslationUnder(introTextEl, intro);
+                }
+            }
+            
+            // Set image/text content
+            // Prefer impliciete contextzin of betekenis; vermijd de standaard apple-placeholder
+            let imageHtml = x_currentPageXML.getAttribute('imageHtml') || '';
+            
+            // Treat default apple placeholder as empty in manual exercises
+            if (imageHtml && imageHtml.indexOf('media/apple.jpg') !== -1) {
+                imageHtml = '';
+            }
+
+            // Get text from attributes, or from word list if not available
+            let contextzinImp = x_currentPageXML.getAttribute('contextzinImpliciet') || '';
+            let betekenis = x_currentPageXML.getAttribute('betekenis') || '';
+            let contextzin = x_currentPageXML.getAttribute('contextzin') || '';
+            
+            // If not found in attributes, try to get from word list
+            if ((!contextzinImp || contextzinImp.trim() === '') && 
+                (!betekenis || betekenis.trim() === '') && 
+                originalWord && originalWord.trim() !== '') {
+                const wordData = getWordDataFromProject(originalWord);
+                if (wordData) {
+                    if (!contextzinImp && wordData.contextzinImpliciet) {
+                        contextzinImp = wordData.contextzinImpliciet;
+                    }
+                    if (!betekenis && wordData.betekenis) {
+                        betekenis = wordData.betekenis;
+                    }
+                    if (!contextzin && wordData.contextzinExpliciet) {
+                        contextzin = wordData.contextzinExpliciet;
+                    }
+                }
+            }
+
+            // Prefer impliciete contextzin, fall back to betekenis, then contextzin
+            if (!imageHtml || imageHtml.trim() === '') {
+                if (contextzinImp && contextzinImp.trim() !== '') {
+                    imageHtml = '<p>' + stripHtml(contextzinImp) + '</p>';
+                } else if (betekenis && betekenis.trim() !== '') {
+                    imageHtml = '<p>' + stripHtml(betekenis) + '</p>';
+                } else if (contextzin && contextzin.trim() !== '') {
+                    imageHtml = '<p>' + stripHtml(contextzin) + '</p>';
+                }
+            }
+
+            wrapper.querySelector('.imageContent').innerHTML = imageHtml;
+
+            const image = wrapper.querySelector('.imageWrapper');
+            const soundIcon = wrapper.querySelector('.soundIcon');
+
+            if (showSpeaker) {
+                soundIcon.style.display = 'block';
+                image.addEventListener('click', () => {
+                    const utterance = new SpeechSynthesisUtterance(correctWord);
+                    utterance.lang = 'nl-NL';
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utterance);
+                });
+            } else {
+                soundIcon.style.display = 'none';
+            }
+
+            const input = wrapper.querySelector('#userInput');
+            const feedback = wrapper.querySelector('#feedback');
+            const hangman = wrapper.querySelector('#hangman');
+            const checkBtn = wrapper.querySelector('#checkButton');
+            const retryBtn = wrapper.querySelector('#retryButton');
+            const hintBtn = wrapper.querySelector('#hintButton');
+            const fadeMessage = wrapper.querySelector('#fadeMessage');
+
+            // Hide fade message and instruction modal (not used in hangman mode)
+            if (fadeMessage) {
+                fadeMessage.style.display = 'none';
+            }
+            const instructionModal = document.getElementById('instructionModal');
+            if (instructionModal) {
+                instructionModal.style.display = 'none';
+            }
+
+            // Auto-focus on input field
+            if (input) {
+                setTimeout(() => {
+                    try {
+                        input.focus();
+                    } catch(e) {}
+                }, 300);
+            }
+
+            // Hint button functionality - random hints (hangman mode)
+            function giveHint() {
+                const emptyPositions = [];
+                for (let i = 0; i < correctWord.length; i++) {
+                    if (correctWord[i] === ' ') {
+                        guessedLetters[i] = ' ';
+                        continue;
+                    }
+                    if (!guessedLetters[i] || guessedLetters[i] === '') {
+                        emptyPositions.push(i);
+                    }
+                }
+
+                if (emptyPositions.length === 0) {
+                    if (hintBtn) {
+                        hintBtn.disabled = true;
+                        hintBtn.textContent = 'alle letters bekend';
+                    }
+                    return;
+                }
+
+                // Pick a random empty position
+                const randomIndex = Math.floor(Math.random() * emptyPositions.length);
+                const position = emptyPositions[randomIndex];
+                guessedLetters[position] = correctWord[position];
+                updateHangmanDisplay(hangman);
+                
+                const remainingEmpty = guessedLetters.filter(l => !l || l === '').length;
+                if (remainingEmpty === 0) {
+                    if (hintBtn) {
+                        hintBtn.disabled = true;
+                        hintBtn.textContent = 'alle letters bekend';
+                    }
+                    if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                        XENITH.FEEDBACK.showSuccess({
+                            container: document.getElementById('x_pageDiv'),
+                            message: 'goed gedaan!',
+                            showConfetti: true,
+                            playSound: true
+                        });
+                    } else {
+                        feedback.innerHTML = `
+                            <div class="feedback-message">
+                                <div class="feedback-content">
+                                    <span class="feedback-text" style="color: green;">goed gedaan!</span>
+                                </div>
+                            </div>
+                        `;
+                        playSuccessSound();
+                        confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 }
+                        });
+                        setTimeout(() => confetti.reset(), 1000);
+                    }
+                    if (window.wtMarkExerciseDone) window.wtMarkExerciseDone('woordzoeker');
+                    input.disabled = true;
+                    // Geen wtRecordAttempt hier: alleen 'goed' opslaan als het hele woord zelf getypt is (zie input-listener)
+                }
+            }
+
+            if (hintBtn) {
+                hintBtn.addEventListener('click', giveHint);
+                hintBtn.style.display = 'inline-block';
+            }
+
+            // Hangman mode - no check button, input updates hangman display
+            checkBtn.style.display = 'none';
+            input.addEventListener('input', () => {
+                const userInputRaw = input.value.trim();
+                const userInput = shouldBeLowercase ? userInputRaw.toLowerCase() : userInputRaw;
+                let incorrect = 0;
+
+                // Update guessed letters
+                for (let i = 0; i < correctWord.length; i++) {
+                    const correctChar = correctWord[i];
+                    
+                    if (correctChar === ' ') {
+                        guessedLetters[i] = ' ';
+                        continue;
+                    }
+                    
+                    const userChar = userInput[i];
+                    if (userChar) {
+                        if (userChar.toLowerCase() === correctChar.toLowerCase()) {
+                            guessedLetters[i] = correctChar;
+                        } else {
+                            incorrect++;
+                        }
+                    } else {
+                        guessedLetters[i] = '';
+                    }
+                }
+
+                const emptyCount = guessedLetters.filter((l, i) => l === '' && correctWord[i] !== ' ').length;
+                updateHangmanDisplay(hangman);
+
+                feedback.innerHTML = `
+                    <div class="feedback-message">
+                        <div class="feedback-content">
+                            <span class="feedback-text">Aantal foute of niet ingevulde letters: ${incorrect + emptyCount}</span>
+                        </div>
+                    </div>
+                `;
+
+                if (incorrect === 0 && emptyCount === 0) {
+                    if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                        XENITH.FEEDBACK.showSuccess({
+                            container: document.getElementById('x_pageDiv'),
+                            message: 'goed gedaan!',
+                            showConfetti: true,
+                            playSound: true
+                        });
+                    } else {
+                        feedback.innerHTML = `
+                            <div class="feedback-message">
+                                <div class="feedback-content">
+                                    <span class="feedback-text" style="color: green;">goed gedaan!</span>
+                                </div>
+                            </div>
+                        `;
+                        playSuccessSound();
+                        confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 }
+                        });
+                        setTimeout(() => confetti.reset(), 1000);
+                    }
+                    if (window.wtMarkExerciseDone) wtMarkExerciseDone('woordzoeker');
+                    input.disabled = true;
+                    if (hintBtn) {
+                        hintBtn.disabled = true;
+                        hintBtn.textContent = 'alle letters bekend';
+                    }
+                    if (window.wtRecordAttempt) window.wtRecordAttempt('woordzoeker', correctWord, true);
+                }
+                // Geen voortgang registreren bij gedeeltelijke invoer: alleen 'goed' wanneer heel woord correct
+            });
+
+            updateHangmanDisplay(hangman);
+
+            // Retry button functionality
+            if (retryBtn) {
+                retryBtn.addEventListener('click', () => {
+                    input.value = '';
+                    feedback.innerHTML = '';
+                    retryBtn.style.display = 'none';
+                    
+                    guessedLetters = Array(correctWord.length).fill('').map((_, i) => {
+                        return correctWord[i] === ' ' ? ' ' : '';
+                    });
+                    
+                    if (hintBtn) {
+                        hintBtn.disabled = false;
+                        hintBtn.textContent = 'geef hint';
+                    }
+                    
+                    updateHangmanDisplay(hangman);
+                    input.disabled = false;
+                    
+                    if (input) {
+                        setTimeout(() => {
+                            try {
+                                input.focus();
+                            } catch(e) {}
+                        }, 300);
+                    }
+                });
+            }
+        };
+    };
+
+    woordzoeker.init();
+</script>
+
+<div id="bnwwrapper" class="general-wrapper">
+    <div class="introText"></div>
+    <div class="matchContainer general-wrapper">
+        <div class="wnaItemBlock">
+            <div class="imageWrapper" >
+                <div class="imageContent"></div>
+                <div class="soundIcon">🔊</div>
+            </div>
+            <div id="fadeMessage" class="fadeMessage" style="display: none;">woord verdwijnt na 3 seconden!</div>
+            <div id="hangman" class="hangmanDisplay"></div>
+            <input type="text" id="userInput" placeholder="Typ het woord hier..." autocomplete="off" />
+            <button id="checkButton"
+                style="display:none; margin: 0.5rem; padding: 0.5rem 1rem; font-size: 1rem; background-color: #7E1AE3; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                controleer antwoord
+            </button>
+            <button id="retryButton" class="retryButton" style="display: none;">
+                probeer opnieuw
+            </button>
+            <button id="hintButton" class="hintButton" style="display: none;">
+                geef hint
+            </button>
+        </div>
+    </div>
+    <div id="feedback"></div>
+</div>
+
+<style>
+    #bnwwrapper {
+        font-family: "Segoe UI", sans-serif;
+        padding: 1rem 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .imageContent p,
+    .imageContent p span {
+        font-size: 1.4rem !important;
+        color: #333 !important;
+        font-family: inherit;
+        text-align: center;
+    }
+
+    .imageContent {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .introText {
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+        max-width: 600px;
+        margin-bottom: 1rem;
+    }
+    .intro-translation {
+        text-align: center !important;
+    }
+
+    .soundIcon {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+        padding: 6px;
+        font-size: 1.2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        pointer-events: none;
+    }
+
+    .imageWrapper {
+        margin: 0 0 1rem 0;
+        position: relative;
+        max-width: 500px;
+        max-height: 300px;
+    }
+
+    .imageWrapper img {
+        width: 100%;
+        height: auto;
+    }
+
+    .hangmanDisplay {
+        font-size: 1.5rem;
+        color: #7E1AE3;
+        letter-spacing: 0.25rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        min-height: 2.25rem;
+    }
+    .hangmanDisplay .hangman-slot {
+        display: inline-block;
+        min-width: 1em;
+        text-align: center;
+        border-bottom: 2px solid #7E1AE3;
+        margin: 0 0.08em;
+    }
+    .hangmanDisplay .hangman-space {
+        display: inline-block;
+        min-width: 1.2em;
+        color: #7E1AE3;
+        opacity: 0.8;
+        margin: 0 0.12em;
+    }
+
+    #feedback {
+        font-size: 1rem;
+        color: #333;
+        margin-top: 0.5rem;
+    }
+
+    .feedback-message {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.5rem;
+    }
+
+    .feedback-content {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        border: 2px solid transparent;
+    }
+
+    .feedback-text {
+        font-weight: 600;
+        font-size: 1.1em;
+    }
+
+    .retryButton {
+        margin: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .retryButton:hover {
+        background-color: #6a16c7;
+    }
+
+    .hintButton {
+        margin: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        font-weight: bold;
+    }
+
+    .hintButton:hover:not(:disabled) {
+        background-color: #6a16c7;
+    }
+
+    .hintButton:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+</style>
+

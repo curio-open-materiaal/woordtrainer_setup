@@ -1,0 +1,29 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="false">
+    <newNodes>
+      <woordenLijstExtended><![CDATA[
+<woordenLijstExtended name="Woordenlijst Extended" wordListText="appel:Een ronde vrucht die groeit aan een boom
+contextzin (i): De appel valt niet ver van de boom.
+contextzin (e): Ik eet graag een appel als tussendoortje.
+
+fiets:Een voertuig met twee wielen
+contextzin (i): Hij fietst elke dag naar school.
+contextzin (e): Ik ga met de fiets naar de winkel."/>
+      ]]></woordenLijstExtended>
+    </newNodes>
+  </pageWizard>
+
+  <woordenLijstExtended
+  menu="Woordtrainer"
+  menuItem="Woordenlijst Extended"
+  hint="Toont een lijst van woorden met betekenis en contextzin. Klik op een woord voor meer informatie."
+  icon="icList"
+  thumb="thumbs/list.jpg"
+  remove="true">
+
+  <name label="Pagina Titel" type="TextInput" wysiwyg="true" />
+  <wordListText label="Woordenlijst" type="TextArea" height="400" placeholder="Voer woorden in met het volgende formaat:&#10;&#10;woord:betekenis&#10;contextzin (i): impliciete contextzin&#10;contextzin (e): expliciete contextzin&#10;&#10;woord2:betekenis2&#10;contextzin (i): ..."/>
+	
+  </woordenLijstExtended>
+</wizard>
+

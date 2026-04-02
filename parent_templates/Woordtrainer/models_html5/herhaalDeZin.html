@@ -1,0 +1,1064 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+  var herhaalDeZin = new function () {
+    let sentences = [];
+    let meanings = []; // Store meanings for each sentence
+    let currentIndex = 0;
+    let recognition = null;
+    let isRecognizing = false;
+    let showMeaning = false;
+    let wordsFromList = []; // Cache words from woordenLijstExtended
+    let currentLevel = '1'; // '1', '2' or '3' – level 3 shows 4 word choices
+    
+    
+    // Strip HTML tags from text
+    function stripHtml(html) {
+      if (!html) return '';
+      const tmp = document.createElement('DIV');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+    
+    // Get words and meanings from woordenLijstExtended pages
+    function getWordsAndMeaningsFromProject() {
+      // First check for custom word set
+      if (typeof window.wtGetCustomWordSet === 'function') {
+        const customSet = window.wtGetCustomWordSet();
+        if (customSet && customSet.length > 0) {
+          // Convert to pairs format - ensure both word and betekenis exist
+          const pairs = customSet.map(w => ({
+            word: (w.word || w || '').trim().toLowerCase(),
+            meaning: (w.betekenis || w.meaning || '').trim()
+          })).filter(p => p.word && p.word.length > 0 && p.meaning && p.meaning.length > 0);
+          if (pairs.length > 0) {
+            return pairs;
+          }
+        }
+      }
+      
+      // Otherwise get words from woordenLijstExtended pages
+      const allPairs = [];
+      
+      try {
+        // Loop through all pages in the project
+        if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+          for (let i = 0; i < x_pages.length; i++) {
+            const pageXML = x_pages[i];
+            if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+            
+            // Check if this is a woordenLijstExtended or woordenLijstCustom page
+            const tagName = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+            if (tagName === 'woordenlijstextended' || tagName === 'woordenlijst extended' ||
+                tagName === 'woordenlijstcustom' || tagName === 'woordenlijst custom') {
+              const wordListText = pageXML.getAttribute('wordListText') || '';
+              
+              if (!wordListText || wordListText.trim() === '') continue;
+              
+              // Parse the text format (same as woordenLijstExtended.html)
+              let wordBlocks = wordListText.split(/\n\s*\n/);
+              
+              if (wordBlocks.length === 1) {
+                const allLines = wordListText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                wordBlocks = [];
+                let currentBlock = [];
+                
+                allLines.forEach((line) => {
+                  const wordMatch = line.match(/^([^:]+):(.+)$/);
+                  const isNewWord = wordMatch && !line.toLowerCase().startsWith('contextzin');
+                  
+                  if (isNewWord && currentBlock.length > 0) {
+                    wordBlocks.push(currentBlock.join('\n'));
+                    currentBlock = [line];
+                  } else {
+                    currentBlock.push(line);
+                  }
+                });
+                
+                if (currentBlock.length > 0) {
+                  wordBlocks.push(currentBlock.join('\n'));
+                }
+              }
+              
+              wordBlocks.forEach(block => {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length === 0) return;
+                
+                let word = '';
+                let betekenis = '';
+                
+                lines.forEach(line => {
+                  const wordMatch = line.match(/^([^:]+):(.+)$/);
+                  if (wordMatch && !line.toLowerCase().startsWith('contextzin')) {
+                    word = stripHtml(wordMatch[1].trim());
+                    betekenis = stripHtml(wordMatch[2].trim());
+                  }
+                });
+                
+                if (word && betekenis) {
+                  allPairs.push({ word: word.toLowerCase(), meaning: betekenis });
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error getting words from project:', e);
+      }
+      
+      return allPairs;
+    }
+    
+    // Get meaning for a word from the word list
+    function getMeaningForWord(word) {
+      if (!word || !word.trim()) return '';
+      
+      // Load words from list if not already loaded
+      if (wordsFromList.length === 0) {
+        wordsFromList = getWordsAndMeaningsFromProject();
+      }
+      
+      // Find the word (case-insensitive)
+      const normalizedWord = word.toLowerCase().trim();
+      const pair = wordsFromList.find(p => p.word === normalizedWord);
+      
+      return pair ? pair.meaning : '';
+    }
+    
+    // Initialize speech recognition
+    function initSpeechRecognition() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        console.warn('Speech recognition not supported in this browser');
+        return null;
+      }
+      
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'nl-NL';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      return recognition;
+    }
+    
+    this.playSuccess = function() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {
+      }
+    };
+    
+    this.launchConfetti = function() {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      setTimeout(() => confetti.reset(), 1000);
+    };
+    
+    function normalizeText(text) {
+      if (!text) return '';
+      return text.toLowerCase()
+        .trim()
+        .replace(/[.,!?;:]/g, '')
+        .replace(/\s+/g, ' ');
+    }
+    
+    // For display: if a "sentence" has more than 4 words, start it with a capital letter
+    function formatSentenceForDisplay(text) {
+      if (!text) return '';
+      
+      const plain = stripHtml(text).trim();
+      const words = plain.split(/\s+/).filter(Boolean);
+      if (words.length <= 4) {
+        return text;
+      }
+      
+      // Capitalize the first non-whitespace character
+      return text.replace(/^(\s*)(\S)/, function(match, leading, firstChar) {
+        return leading + firstChar.toUpperCase();
+      });
+    }
+    
+    this.checkRecognition = function(transcript, expectedWord) {
+      const normalizedTranscript = normalizeText(transcript);
+      const normalizedExpected = normalizeText(expectedWord);
+      
+      // Exact match
+      if (normalizedTranscript === normalizedExpected) {
+        return true;
+      }
+      
+      // Check if transcript contains the expected word
+      if (normalizedTranscript.includes(normalizedExpected)) {
+        return true;
+      }
+      
+      // Check if expected word contains the transcript (for partial matches)
+      if (normalizedExpected.includes(normalizedTranscript) && normalizedTranscript.length >= normalizedExpected.length * 0.7) {
+        return true;
+      }
+      
+      return false;
+    };
+    
+    // Expose sentences for global access
+    Object.defineProperty(this, 'sentences', {
+      get: function() { return sentences; }
+    });
+    
+    // Expose recognition for global access
+    Object.defineProperty(this, 'recognition', {
+      get: function() { return recognition; }
+    });
+    
+    // Expose showMeaning for global access
+    Object.defineProperty(this, 'showMeaning', {
+      get: function() { return showMeaning; }
+    });
+
+    // Expose level for global access (level 3 = show 4 word options)
+    Object.defineProperty(this, 'level', {
+      get: function() { return currentLevel; }
+    });
+    
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('wnawrapper');
+      const micWarningEl = wrapper.querySelector('.micWarning');
+      
+      // Show a clear message about microphone support / permissions
+      const supportsMic = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      const supportsSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+      if (micWarningEl) {
+        if (!supportsMic) {
+          micWarningEl.innerHTML = 'Je browser ondersteunt geen microfoonopname. Gebruik bij voorkeur een andere browser (bijvoorbeeld Chrome of Edge).';
+        } else if (!supportsSpeech) {
+          micWarningEl.innerHTML = 'Je browser ondersteunt geen spraakherkenning. Je kunt wel opnemen en terugluisteren, maar de oefening kan je uitspraak niet automatisch beoordelen.';
+        } else {
+          micWarningEl.innerHTML = 'Krijg je een melding over microfoontoegang? Kies dan in je browser voor \"Toestaan\" om deze oefening te kunnen maken.';
+        }
+      }
+      
+      // Check if showMeaning mode is enabled
+      showMeaning = (x_currentPageXML.getAttribute('showMeaning') || 'false') === 'true';
+
+      // Level from xenith (level 3 = show 4 word choices under the exercise)
+      currentLevel = (x_currentPageXML.getAttribute('level') || '1').toString();
+
+      // Adjust intro text based on mode
+      const intro = showMeaning ? 'Spreek het bijbehorende woord hardop uit.' : 'Herhaal het woord hardop.';
+      const introTextEl = wrapper.querySelector('.introText');
+      introTextEl.innerHTML = x_addLineBreaks(intro);
+      
+      // Add translation under intro text
+      if (typeof x_addTranslationUnder === 'function') {
+        x_addTranslationUnder(introTextEl, intro);
+      }
+      
+      // Load up to 4 sentences and their meanings
+      sentences = [];
+      meanings = [];
+      for (let i = 1; i <= 4; i++) {
+        const zin = x_currentPageXML.getAttribute(`zin${i}`);
+        if (zin && zin.trim() !== "") {
+          sentences.push(zin.trim()); // Always store the word
+          
+          // Get meaning: first try from XML attribute (set by xenith.js based on level)
+          let betekenis = x_currentPageXML.getAttribute(`betekenis${i}`) || '';
+          if (!betekenis || betekenis.trim() === '') {
+            // Fallback: try to get from woordenLijstExtended
+            betekenis = getMeaningForWord(zin.trim());
+          }
+          
+          meanings.push(betekenis.trim());
+        }
+      }
+      
+      // If no sentences loaded, create one from zin1 (the word)
+      if (sentences.length === 0) {
+        const word = x_currentPageXML.getAttribute('zin1') || '';
+        if (word) {
+          sentences.push(word);
+          // Get meaning from betekenis1 attribute (for level 2/3)
+          let betekenis = x_currentPageXML.getAttribute('betekenis1') || '';
+          if (!betekenis) {
+            // Fallback to getting from woordenLijstExtended
+            betekenis = getMeaningForWord(word);
+          }
+          meanings.push(betekenis.trim());
+        }
+      }
+
+      // Initialize speech recognition
+      recognition = initSpeechRecognition();
+
+      currentIndex = 0;
+      renderCurrentSentence();
+    };
+
+    function renderCurrentSentence() {
+      const container = document.querySelector('.matchContainer');
+      container.innerHTML = '';
+
+      if (currentIndex >= sentences.length) {
+        container.innerHTML = `
+            <div class="wnaItemBlock">
+                <div class="feedback-message">
+                    <div class="feedback-content">
+                        <span class="feedback-text">Je hebt alle zinnen geoefend. goed gedaan!</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        return;
+      }
+
+      const zin = sentences[currentIndex];
+      const betekenis = meanings[currentIndex] || '';
+      const id = `zin${currentIndex}`;
+
+      const block = document.createElement('div');
+      block.className = 'wnaItemBlock';
+
+      // Create feedback element
+      const feedbackDiv = document.createElement('div');
+      feedbackDiv.id = `${id}-feedback`;
+      feedbackDiv.className = 'recognition-feedback';
+      feedbackDiv.style.display = 'none';
+      feedbackDiv.style.marginTop = '1rem';
+      feedbackDiv.style.textAlign = 'center';
+      feedbackDiv.style.fontWeight = 'bold';
+      feedbackDiv.style.fontSize = '1.1rem';
+
+      // Determine what to display
+      // When showMeaning is enabled, always show the meaning (or a message if missing)
+      let displayText;
+      if (showMeaning) {
+        if (betekenis && betekenis.trim() !== '') {
+          displayText = betekenis;
+        } else {
+          // Fallback if meaning is not provided
+          displayText = '[Betekenis niet ingevuld]';
+        }
+      } else {
+        displayText = formatSentenceForDisplay(zin);
+      }
+      const showPronunciationBtn = !showMeaning; // Hide pronunciation button when showing meaning
+
+      // Build buttons HTML
+      let buttonsHTML = '';
+      if (showPronunciationBtn) {
+        buttonsHTML += `<button id="${id}-pronunciation-btn" onclick="speak('${zin.replace(/'/g, "\\'")}')"><span class="fa fa-volume-high"> </span> uitspraak</button>`;
+      }
+      buttonsHTML += `
+        <button id="${id}-record-btn" onclick="toggleRecording('${id}')"><span class="fa fa-microphone"> </span> opnemen</button>
+        <button id="${id}-play-btn" onclick="playRecording('${id}')" disabled><span class="fa fa-play"> </span> terugluisteren</button>
+        <audio id="${id}-audio" controls style="display:none;"></audio>
+      `;
+
+      block.innerHTML = `
+          <div class="itemDescription">${displayText}</div>
+          <div class="btnHolder buttons">
+            ${buttonsHTML}
+          </div>
+        `;
+
+      block.appendChild(feedbackDiv);
+
+      // Level 3: show 4 word choices (correct + 3 distractors) under the exercise
+      if (currentLevel === '3') {
+        const correctWord = stripHtml(zin).trim().toLowerCase();
+        let allPairs = wordsFromList.length > 0 ? wordsFromList : getWordsAndMeaningsFromProject();
+        if (allPairs.length > 0) wordsFromList = allPairs;
+        const otherWords = allPairs
+          .map(function(p) { return (p.word || '').trim().toLowerCase(); })
+          .filter(function(w) { return w && w !== correctWord; });
+        const distractors = [];
+        const shuffled = otherWords.slice().sort(function() { return Math.random() - 0.5; });
+        for (var d = 0; d < 3 && d < shuffled.length; d++) distractors.push(shuffled[d]);
+        const fourWords = [correctWord].concat(distractors).sort(function() { return Math.random() - 0.5; });
+        const optionsWrap = document.createElement('div');
+        optionsWrap.className = 'herhaal-level3-options';
+        fourWords.forEach(function(w) {
+          const span = document.createElement('span');
+          span.className = 'herhaal-word-option';
+          span.textContent = w;
+          optionsWrap.appendChild(span);
+        });
+        block.appendChild(optionsWrap);
+      }
+
+      container.appendChild(block);
+    }
+
+    this.next = function () {
+      if (currentIndex < sentences.length) {
+        currentIndex++;
+        renderCurrentSentence();
+      }
+    };
+
+    this.prev = function () {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderCurrentSentence();
+      }
+    };
+
+    this.init();
+  };
+
+  function speak(text) {
+    speakWithElevenLabs(text);
+  }
+
+  const recordings = {};
+  let mediaRecorder = null;
+  let currentChunks = [];
+  let currentId = null;
+  let currentRecognition = null;
+  let isRecognizing = false;
+  let currentStream = null;
+  let hasResult = false;
+
+  async function toggleRecording(id) {
+    const button = document.getElementById(`${id}-record-btn`);
+    const feedbackDiv = document.getElementById(`${id}-feedback`);
+    const expectedWord = herhaalDeZin.sentences[parseInt(id.replace('zin', ''))];
+    const showMeaning = herhaalDeZin.showMeaning || false;
+    
+    // Check if we're using speech recognition
+    if (herhaalDeZin.recognition && !isRecognizing) {
+      // Start speech recognition
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Microfoon wordt niet ondersteund in deze browser.');
+        return;
+      }
+
+      try {
+        // Request microphone permission and get stream for recording
+        currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Also start MediaRecorder to save audio for playback
+        mediaRecorder = new MediaRecorder(currentStream);
+        currentChunks = [];
+        currentId = id;
+        
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) currentChunks.push(e.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(currentChunks, { type: 'audio/webm' });
+          const audio = document.getElementById(`${id}-audio`);
+          if (audio) {
+            audio.src = URL.createObjectURL(blob);
+            audio.style.display = 'block';
+            recordings[id] = blob;
+            
+            // Enable playback button
+            const playBtn = document.getElementById(`${id}-play-btn`);
+            if (playBtn) playBtn.disabled = false;
+          }
+          
+          // Stop all tracks
+          if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+          }
+        };
+        
+        // Start both MediaRecorder and speech recognition
+        mediaRecorder.start();
+        
+        isRecognizing = true;
+        hasResult = false;
+        currentRecognition = herhaalDeZin.recognition;
+        currentId = id;
+
+        // Update button appearance
+        button.classList.add('recording');
+        button.innerHTML = '<span class="fa fa-stop"> </span> stop';
+        
+        // Disable pronunciation button during recording
+        const pronunciationBtn = document.getElementById(`${id}-pronunciation-btn`);
+        if (pronunciationBtn) {
+          pronunciationBtn.disabled = true;
+        }
+        
+        // Hide previous feedback
+        if (feedbackDiv) {
+          feedbackDiv.style.display = 'none';
+          feedbackDiv.textContent = '';
+        }
+
+        currentRecognition.onresult = (event) => {
+          hasResult = true;
+          const result = event.results[0][0];
+          const transcript = result.transcript;
+          const confidence = result.confidence;
+          
+          
+          const isCorrect = herhaalDeZin.checkRecognition(transcript, expectedWord);
+          
+          // Stop recognition and recording
+          currentRecognition.stop();
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+          }
+          isRecognizing = false;
+          
+          // Reset button
+          button.classList.remove('recording');
+          button.innerHTML = '<span class="fa fa-microphone"> </span> opnemen';
+          
+          // Re-enable pronunciation button after recording
+          const pronunciationBtn = document.getElementById(`${id}-pronunciation-btn`);
+          if (pronunciationBtn) {
+            pronunciationBtn.disabled = false;
+          }
+          
+          if (isCorrect) {
+            // Show success feedback using shared function
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              // Fallback for older code
+              if (feedbackDiv) {
+                feedbackDiv.style.display = 'block';
+                feedbackDiv.style.color = '#28a745';
+                feedbackDiv.textContent = 'goed gedaan!';
+              }
+              herhaalDeZin.playSuccess();
+              herhaalDeZin.launchConfetti();
+            }
+            
+            // Record attempt for stats
+            if (window.wtRecordAttempt) {
+              window.wtRecordAttempt('herhaalDeZin', expectedWord, true);
+            }
+          } else {
+            // Show error feedback
+            if (feedbackDiv) {
+              feedbackDiv.style.display = 'block';
+              feedbackDiv.style.color = '#dc3545';
+              feedbackDiv.textContent = 'Probeer het opnieuw. Ik hoorde: "' + transcript + '"';
+            }
+            
+            // If showMeaning is enabled and answer is wrong, enable playback button
+            const playBtn = document.getElementById(`${id}-play-btn`);
+            if (playBtn && showMeaning) {
+              playBtn.disabled = false;
+            }
+            
+            // Record attempt for stats
+            if (window.wtRecordAttempt) {
+              window.wtRecordAttempt('herhaalDeZin', expectedWord, false, transcript);
+            }
+          }
+        };
+
+        currentRecognition.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          hasResult = false;
+          
+          // Stop recording if still active
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+          }
+          
+          isRecognizing = false;
+          button.classList.remove('recording');
+          button.innerHTML = '<span class="fa fa-microphone"> </span> opnemen';
+          
+          // Re-enable pronunciation button after recording error
+          const pronunciationBtn = document.getElementById(`${id}-pronunciation-btn`);
+          if (pronunciationBtn) {
+            pronunciationBtn.disabled = false;
+          }
+          
+          // Handle specific error types
+          let errorMessage = 'Er is een fout opgetreden. Probeer het opnieuw.';
+          if (event.error === 'no-speech') {
+            errorMessage = 'Geen audio gehoord. Zorg ervoor dat je microfoon aan staat en probeer het opnieuw.';
+          } else if (event.error === 'audio-capture') {
+            errorMessage = 'Geen microfoon gevonden. Controleer je microfoon en probeer het opnieuw.';
+          } else if (event.error === 'not-allowed') {
+            errorMessage = 'Microfoon toegang geweigerd. Controleer je browserinstellingen.';
+          }
+          
+          if (feedbackDiv) {
+            feedbackDiv.style.display = 'block';
+            feedbackDiv.style.color = '#dc3545';
+            feedbackDiv.textContent = errorMessage;
+          }
+          
+          // If showMeaning is enabled and there's an error, enable playback button
+          const playBtn = document.getElementById(`${id}-play-btn`);
+          if (playBtn && showMeaning) {
+            playBtn.disabled = false;
+          }
+        };
+
+        currentRecognition.onend = () => {
+          // Stop MediaRecorder if still recording
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+          }
+          
+          isRecognizing = false;
+          
+          // Re-enable pronunciation button after recording ends
+          const pronunciationBtn = document.getElementById(`${id}-pronunciation-btn`);
+          if (pronunciationBtn) {
+            pronunciationBtn.disabled = false;
+          }
+          
+          // Check if we got a result
+          if (!hasResult && button.classList.contains('recording')) {
+            // No audio was heard
+            button.classList.remove('recording');
+            button.innerHTML = '<span class="fa fa-microphone"> </span> opnemen';
+            
+            if (feedbackDiv) {
+              feedbackDiv.style.display = 'block';
+              feedbackDiv.style.color = '#dc3545';
+              feedbackDiv.textContent = 'Geen audio gehoord. Zorg ervoor dat je microfoon aan staat en probeer het opnieuw.';
+            }
+            
+            // If showMeaning is enabled and no audio, enable playback button
+            const playBtn = document.getElementById(`${id}-play-btn`);
+            if (playBtn && showMeaning) {
+              playBtn.disabled = false;
+            }
+          } else if (button.classList.contains('recording')) {
+            // User manually stopped, but we should have stopped already
+            button.classList.remove('recording');
+            button.innerHTML = '<span class="fa fa-microphone"> </span> opnemen';
+          }
+        };
+
+        currentRecognition.start();
+      } catch (error) {
+        console.error('Error starting speech recognition:', error);
+        alert('Kon geen toegang krijgen tot de microfoon. Controleer je browserinstellingen.');
+        isRecognizing = false;
+      }
+    } else if (isRecognizing && currentId === id) {
+      // Stop recognition and recording
+      if (currentRecognition) {
+        currentRecognition.stop();
+      }
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      }
+      isRecognizing = false;
+      button.classList.remove('recording');
+      button.innerHTML = '<span class="fa fa-microphone"> </span> opnemen';
+      
+      // Re-enable pronunciation button after stopping
+      const pronunciationBtn = document.getElementById(`${id}-pronunciation-btn`);
+      if (pronunciationBtn) {
+        pronunciationBtn.disabled = false;
+      }
+      
+      // Stop stream
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+    } else {
+      // Fallback to MediaRecorder if speech recognition is not available
+      if (mediaRecorder && currentId === id && mediaRecorder.state === 'recording') {
+        // Stop recording
+        mediaRecorder.stop();
+        button.classList.remove('recording');
+      button.innerHTML = '<span class="fa fa-microphone"> </span> opnemen';
+    } else {
+      // Start recording
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Microfoon wordt niet ondersteund in deze browser.');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      currentChunks = [];
+      currentId = id;
+
+        // Update button appearance
+        button.classList.add('recording');
+        button.innerHTML = '<span class="fa fa-stop"> </span> stop';
+        
+        // Disable pronunciation button during recording
+        const pronunciationBtn = document.getElementById(`${id}-pronunciation-btn`);
+        if (pronunciationBtn) {
+          pronunciationBtn.disabled = true;
+        }
+
+        mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) currentChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(currentChunks, { type: 'audio/webm' });
+        const audio = document.getElementById(`${id}-audio`);
+          if (audio) {
+        audio.src = URL.createObjectURL(blob);
+        audio.style.display = 'block';
+        recordings[id] = blob;
+
+            // Enable playback button now that recording exists
+            const playBtn = document.getElementById(`${id}-play-btn`);
+            if (playBtn) playBtn.disabled = false;
+          }
+
+          // Reset button appearance
+          button.classList.remove('recording');
+          button.innerHTML = '<span class="fa fa-microphone"> </span> opnemen';
+          
+          // Re-enable pronunciation button after recording
+          const pronunciationBtn = document.getElementById(`${id}-pronunciation-btn`);
+          if (pronunciationBtn) {
+            pronunciationBtn.disabled = false;
+          }
+          
+          // Stop stream
+          if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+          }
+        };
+
+        mediaRecorder.start();
+      }
+    }
+  }
+
+  function playRecording(id) {
+    const audio = document.getElementById(`${id}-audio`);
+    if (audio && audio.src) {
+      audio.play();
+    }
+  }
+</script>
+
+<div id="wnawrapper" class="general-wrapper">
+  <div class="introText"></div>
+  <div class="micWarning"></div>
+  <div class="matchContainer general-wrapper"></div>
+</div>
+
+<style>
+  #wnawrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 0 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #wnawrapper .introText {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #333;
+    max-width: 600px;
+  }
+
+  #wnawrapper .micWarning {
+    margin-top: 0.35rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+    max-width: 600px;
+  }
+
+  #wnawrapper .matchContainer {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  #wnawrapper .wnaItemBlock {
+    background-color: #fdfdfd;
+    padding: 2rem;
+    width: 100%;
+  }
+
+  #wnawrapper .imageWrapper {
+    display: flex;
+    width: 40%;
+    margin: 0 auto;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  #wnawrapper .imageWrapper img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  #wnawrapper .options {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+
+  #wnawrapper .wordBox {
+    background: white;
+    border: 2px solid #7E1AE3;
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #7E1AE3;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    user-select: none;
+  }
+
+  #wnawrapper .wordBox:hover {
+    background-color: #e8f4ff;
+    transform: scale(1.05);
+  }
+
+  #wnawrapper .wordBox.wrong {
+    border-color: #cc0000;
+    background-color: #fee;
+    color: #cc0000;
+  }
+
+  #wnawrapper .wordBox.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  #wnawrapper .feedback {
+    margin-top: 1em;
+    font-weight: bold;
+    text-align: center;
+    font-size: 1.1em;
+    color: #444;
+    min-height: 1.5em;
+  }
+
+  .itemDescription {
+    text-align: center;
+    font-size: 2rem;
+    color: #7E1AE3;
+    margin-bottom: 1rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #wnawrapper .btnHolder {
+    margin-top: 0.4rem;
+    text-align: center;
+  }
+
+  #wnawrapper .nextButton,
+  #wnawrapper .prevButton,
+  #wnawrapper .resetButton {
+    background-color: #7E1AE3;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.75rem 1.75rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  #wnawrapper .nextButton:hover,
+  #wnawrapper .prevButton:hover,
+  #wnawrapper .resetButton:hover {
+    background-color: #7E1AE3;
+    transform: translateY(-2px);
+  }
+
+  #wnawrapper .finalFeedback {
+    text-align: center;
+    font-size: 1.3rem;
+    margin-top: 2rem;
+    color: #333;
+  }
+
+  #wnawrapper .finalFeedback p {
+    margin-bottom: 1.5rem;
+  }
+
+  .feedback-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+
+  .feedback-content {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+  }
+
+  .feedback-text {
+    font-weight: 600;
+    font-size: 1.1em;
+  }
+
+  audio {
+    margin: 0 auto;
+    margin-top: 15px;
+  }
+
+  #wnawrapper .btnHolder.buttons button {
+    background-color: #fff;
+    color: black;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.65rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 0.4rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  #wnawrapper .btnHolder.buttons button:hover {
+    background-color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .btnHolder.buttons button:hover {
+    color: #eee !important;
+  }
+
+  #wnawrapper .btnHolder.buttons button:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+
+  #wnawrapper .btnHolder.buttons button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 119, 204, 0.4);
+  }
+
+  .btnHolder.buttons button.recording {
+    background-color: #d00 !important;
+    color: #fff;
+    font-weight: bold;
+    animation: pulse 1.5s infinite;
+  }
+
+  .btnHolder.buttons button:disabled {
+    background-color: #ccc !important;
+    color: #888 !important;
+    cursor: not-allowed !important;
+  }
+  .btnHolder.buttons button:disabled:hover {
+    background-color: #ccc !important;
+    transform: none !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* Level 3: 4 words shown under the exercise (not clickable, no hover) */
+  #wnawrapper .herhaal-level3-options {
+    margin-top: 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+  }
+  #wnawrapper .herhaal-word-option {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background: #F7F2FD;
+    border: 2px solid #7E1AE3;
+    border-radius: 8px;
+    color: #333;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(220, 0, 0, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(220, 0, 0, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(220, 0, 0, 0);
+    }
+  }
+
+
+  .btnHolder.buttons button.recording::before {
+    content: '●';
+    color: white;
+    font-size: 1.1em;
+    margin-right: 0.5em;
+    display: inline-block;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes bounce {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  @keyframes pulse {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.4;
+    }
+  }
+</style>

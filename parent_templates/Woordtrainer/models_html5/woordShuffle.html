@@ -1,0 +1,790 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+  var woordShuffle = new function () {
+    let correctWord = '';
+    let shuffledLetters = [];
+    let fixedLetters = []; // Track which letters are fixed by hints
+    let shuffleInterval = null;
+    let blinkTimeouts = []; // Track all blink timeouts to cancel them
+
+    // Sound functions
+    function playSuccess() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {}
+    }
+
+    function playError() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+      } catch (e) {}
+    }
+
+    // Blink animation - make letters blink; now ensure at least half (rounded up) of non-fixed letters blink
+    function blinkLetters() {
+      const slots = document.querySelectorAll('.letter-slot');
+      const availableSlots = [];
+      
+      // Find slots that are not fixed (using original letter index)
+      slots.forEach((slot) => {
+        const letterIndex = parseInt(slot.dataset.letterIndex);
+        if (!isNaN(letterIndex) && letterIndex >= 0 && !fixedLetters[letterIndex]) {
+          availableSlots.push({ slot: slot, index: letterIndex });
+        }
+      });
+      
+      // If all letters are fixed, stop blinking
+      if (availableSlots.length === 0) {
+        stopBlinking();
+        return;
+      }
+      
+      // Determine how many letters to blink: at least half (rounded up) of available letters
+      const totalAvailable = availableSlots.length;
+      const numToBlink = Math.min(totalAvailable, Math.ceil(totalAvailable / 2));
+      
+      // Shuffle and pick the slots to blink
+      const shuffled = [...availableSlots].sort(() => Math.random() - 0.5);
+      const selectedSlots = shuffled.slice(0, numToBlink);
+      
+      // Show the correct letters and blink
+      selectedSlots.forEach((randomSlot) => {
+        const slot = randomSlot.slot;
+        const letterIndex = randomSlot.index;
+        
+        slot.textContent = correctWord[letterIndex];
+        slot.classList.add('blinking');
+        
+        // Hide after blink animation - store timeout so we can cancel it
+        const timeoutId = setTimeout(() => {
+          // Only clear the slot if it wasn't fixed or revealed in the meantime
+          if (!fixedLetters[letterIndex] && !slot.classList.contains('revealed')) {
+            slot.textContent = '';
+          }
+          slot.classList.remove('blinking');
+          // Remove from array when timeout completes
+          const index = blinkTimeouts.indexOf(timeoutId);
+          if (index > -1) {
+            blinkTimeouts.splice(index, 1);
+          }
+        }, 700); // slightly longer so blink is visible
+        blinkTimeouts.push(timeoutId);
+      });
+    }
+
+    // Stop blinking animation
+    function stopBlinking() {
+      if (shuffleInterval) {
+        clearInterval(shuffleInterval);
+        shuffleInterval = null;
+      }
+      
+      // Cancel all pending blink timeouts
+      blinkTimeouts.forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
+      blinkTimeouts = [];
+      
+      const slots = document.querySelectorAll('.letter-slot');
+      slots.forEach((slot) => {
+        slot.classList.remove('blinking');
+      });
+    }
+
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('shuffleWrapper');
+      if (!wrapper) return;
+
+      const intro = 'Kijk naar de knipperende letters en typ het juiste in.';
+      correctWord = (x_currentPageXML.getAttribute('correctWord') || '').trim();
+      
+      // Apply lowercase if word is short
+      const wordCount = correctWord.trim().split(/\s+/).filter(w => w.length > 0).length;
+      const shouldBeLowercase = wordCount <= 2;
+      correctWord = shouldBeLowercase ? correctWord.toLowerCase() : correctWord;
+
+      const introTextEl = wrapper.querySelector('.introText');
+      introTextEl.innerHTML = x_addLineBreaks(intro);
+      
+      // Add translation under intro text
+      if (typeof x_addTranslationUnder === 'function') {
+        x_addTranslationUnder(introTextEl, intro);
+      }
+
+      const container = wrapper.querySelector('.shuffleContainer');
+      container.innerHTML = '';
+
+      // Get translation of betekenis using API
+      const betekenis = (x_currentPageXML.getAttribute('betekenis') || '').trim();
+      const currentSelectedLanguage = localStorage.getItem('woordenlijst_selected_language') || '';
+      
+      // Show translation at the top if language is selected and betekenis is available
+      if (betekenis && currentSelectedLanguage && currentSelectedLanguage.trim() !== '') {
+        const meaningDiv = document.createElement('div');
+        meaningDiv.className = 'meaning-display';
+        meaningDiv.innerHTML = '<span style="color: #999;">Laden...</span>';
+        container.appendChild(meaningDiv);
+        
+        // Fetch translation of betekenis
+        fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(betekenis)}&langpair=nl|${currentSelectedLanguage}&de=f.vangils@curio.nl`)
+          .then(response => response.json())
+          .then(data => {
+            if (data && data.responseData && data.responseData.translatedText) {
+              let translation = data.responseData.translatedText;
+              if (translation && /MYMEMORY WARNING|USED ALL AVAILABLE FREE|NEXT AVAILABLE IN/i.test(translation)) translation = 'Vertaling niet beschikbaar';
+              if (translation && translation.trim() !== '' && translation.toLowerCase() !== betekenis.toLowerCase()) {
+                meaningDiv.textContent = translation.trim();
+              } else {
+                meaningDiv.remove();
+              }
+            } else {
+              meaningDiv.remove();
+            }
+          })
+          .catch(error => {
+            console.error('Translation error:', error);
+            meaningDiv.remove();
+          });
+      }
+
+      // Create letter slots (fruitmachine style) - start empty
+      // Spaces should be open gaps, not boxes
+      // Group letters by word so multi-word items don't break
+      const slotsContainer = document.createElement('div');
+      slotsContainer.className = 'slots-container';
+      
+      let wordGroup = document.createElement('div');
+      wordGroup.className = 'word-group';
+      
+      for (let i = 0; i < correctWord.length; i++) {
+        const char = correctWord[i];
+        if (char === ' ') {
+          // Close current word group and add space gap
+          if (wordGroup.children.length > 0) {
+            slotsContainer.appendChild(wordGroup);
+          }
+          const spaceGap = document.createElement('div');
+          spaceGap.className = 'space-gap';
+          slotsContainer.appendChild(spaceGap);
+          // Start new word group
+          wordGroup = document.createElement('div');
+          wordGroup.className = 'word-group';
+        } else {
+          const slot = document.createElement('div');
+          slot.className = 'letter-slot';
+          slot.textContent = ''; // Start empty
+          slot.dataset.letterIndex = i; // Store original index for blinking
+          wordGroup.appendChild(slot);
+        }
+      }
+      
+      // Add last word group if it has children
+      if (wordGroup.children.length > 0) {
+        slotsContainer.appendChild(wordGroup);
+      }
+      
+      container.appendChild(slotsContainer);
+
+      // Input field
+      const inputDiv = document.createElement('div');
+      inputDiv.className = 'input-container';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = 'wordInput';
+      input.className = 'word-input';
+      input.placeholder = 'Typ het woord hier...';
+      input.autocomplete = 'off';
+      inputDiv.appendChild(input);
+      container.appendChild(inputDiv);
+
+      // Buttons
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.className = 'buttons-container';
+      
+      const checkBtn = document.createElement('button');
+      checkBtn.className = 'check-btn';
+      checkBtn.textContent = 'controleer';
+      checkBtn.style.display = 'inline-block';
+      
+      const hintBtn = document.createElement('button');
+      hintBtn.className = 'hint-btn';
+      hintBtn.textContent = 'geef hint';
+      hintBtn.style.display = 'inline-block';
+      
+      buttonsDiv.appendChild(checkBtn);
+      buttonsDiv.appendChild(hintBtn);
+      container.appendChild(buttonsDiv);
+
+      // Feedback div
+      const feedback = document.createElement('div');
+      feedback.className = 'feedback';
+      feedback.id = 'feedback';
+      container.appendChild(feedback);
+
+      // Start blinking animation
+      shuffleInterval = setInterval(blinkLetters, 1200); // Blink one letter every 1200ms
+
+      // Hint button
+      hintBtn.addEventListener('click', () => {
+        // Find first unfixed letter (skip spaces)
+        let hintIndex = -1;
+        for (let i = 0; i < correctWord.length; i++) {
+          if (correctWord[i] !== ' ' && !fixedLetters[i]) {
+            hintIndex = i;
+            break;
+          }
+        }
+        
+        if (hintIndex === -1) {
+          hintBtn.disabled = true;
+          hintBtn.textContent = 'alle letters bekend';
+          return;
+        }
+        
+        // Fix this letter (always visible, no more blinking)
+        fixedLetters[hintIndex] = true;
+        // Find the corresponding slot (accounting for spaces)
+        let slotIndex = 0;
+        for (let i = 0; i < hintIndex; i++) {
+          if (correctWord[i] !== ' ') {
+            slotIndex++;
+          }
+        }
+        const slot = slotsContainer.querySelectorAll('.letter-slot')[slotIndex];
+        if (slot) {
+          slot.textContent = correctWord[hintIndex]; // Show the letter
+          slot.classList.add('fixed');
+          slot.classList.remove('blinking'); // Remove blinking from fixed letter
+        }
+        
+        // Check if all non-space letters are fixed
+        let allFixed = true;
+        for (let i = 0; i < correctWord.length; i++) {
+          if (correctWord[i] !== ' ' && !fixedLetters[i]) {
+            allFixed = false;
+            break;
+          }
+        }
+        if (allFixed) {
+          hintBtn.disabled = true;
+          hintBtn.textContent = 'alle letters bekend';
+          stopBlinking();
+        }
+      });
+
+      // Check button
+      checkBtn.addEventListener('click', () => {
+        const userInput = shouldBeLowercase ? input.value.trim().toLowerCase() : input.value.trim();
+        const normalizedCorrect = shouldBeLowercase ? correctWord.toLowerCase() : correctWord;
+        
+        const isCorrect = userInput === normalizedCorrect;
+        
+        if (isCorrect) {
+          // Stop blinking and cancel all pending timeouts FIRST
+          stopBlinking();
+          input.classList.add('correct');
+          
+          // Show all letters in the boxes - iterate through ALL slots
+          const slots = document.querySelectorAll('.letter-slot');
+          
+          // Fill all slots with their correct letters immediately
+          // This ensures all letters are visible, including those that were just blinking
+          slots.forEach((slot) => {
+            // Get the letter index from the slot's data attribute
+            const letterIndexStr = slot.dataset.letterIndex;
+            
+            // Skip slots without a valid letterIndex
+            if (letterIndexStr === undefined || letterIndexStr === null || letterIndexStr === '') {
+              return;
+            }
+            
+            const letterIndex = parseInt(letterIndexStr, 10);
+            
+            // Validate index is within bounds
+            if (isNaN(letterIndex) || letterIndex < 0 || letterIndex >= correctWord.length) {
+              return;
+            }
+            
+            // Get the character from correctWord at this index
+            const char = correctWord.charAt(letterIndex);
+            
+            // Skip spaces (they shouldn't have slots anyway, but be safe)
+            if (char === ' ') {
+              return;
+            }
+            
+            // ALWAYS set the character in the slot, regardless of current state
+            // This ensures letters that were blinking (and would be cleared by timeout) are shown
+            slot.textContent = char;
+            slot.classList.add('revealed');
+            slot.classList.remove('blinking', 'fixed');
+          });
+          
+          // Double-check: ensure every position in correctWord that should have a slot is filled
+          // This is a safety check in case any slots were missed
+          for (let i = 0; i < correctWord.length; i++) {
+            const char = correctWord[i];
+            
+            // Skip spaces
+            if (char === ' ') {
+              continue;
+            }
+            
+            // Find slot with matching letterIndex
+            let found = false;
+            slots.forEach((slot) => {
+              const letterIndex = parseInt(slot.dataset.letterIndex, 10);
+              if (!isNaN(letterIndex) && letterIndex === i) {
+                // Force set the character - don't check if it's already set
+                slot.textContent = char;
+                slot.classList.add('revealed');
+                slot.classList.remove('blinking', 'fixed');
+                found = true;
+              }
+            });
+            
+            // If no slot found for this position, log error (shouldn't happen)
+            if (!found) {
+              console.warn('No slot found for letter at index', i, 'in word:', correctWord);
+            }
+          }
+          
+          if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+            XENITH.FEEDBACK.showSuccess({
+              container: document.getElementById('x_pageDiv'),
+              message: 'goed gedaan!',
+              showConfetti: true,
+              playSound: true
+            });
+          } else {
+            playSuccess();
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+            setTimeout(() => confetti.reset(), 1000);
+          }
+          
+          if (window.wtRecordAttempt) {
+            window.wtRecordAttempt('woordShuffle', correctWord, true);
+          }
+          
+          checkBtn.style.display = 'none';
+          hintBtn.style.display = 'none';
+        } else {
+          input.classList.add('incorrect');
+          playError();
+          setTimeout(() => input.classList.remove('incorrect'), 600);
+          feedback.innerHTML = '<span class="feedback-text" style="color: #dc3545;">Helaas, probeer het opnieuw.</span>';
+          
+          if (window.wtRecordAttempt) {
+            window.wtRecordAttempt('woordShuffle', correctWord, false, userInput);
+          }
+        }
+      });
+
+      // Enter key support
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          checkBtn.click();
+        }
+      });
+
+      // Clear feedback when user starts typing again
+      input.addEventListener('input', () => {
+        feedback.innerHTML = '';
+        // Also remove incorrect class if it's still there
+        input.classList.remove('incorrect');
+      });
+      
+      // Also clear on focus (when user clicks in the input field)
+      input.addEventListener('focus', () => {
+        feedback.innerHTML = '';
+        input.classList.remove('incorrect');
+      });
+    };
+  };
+
+  woordShuffle.init();
+</script>
+
+<div id="shuffleWrapper" class="general-wrapper">
+  <div class="introText"></div>
+  <div class="shuffleContainer"></div>
+</div>
+
+<style>
+  #shuffleWrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  #shuffleWrapper .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+    margin-top: 5rem;
+    margin-bottom: 0;
+    max-width: 600px;
+  }
+
+  .meaning-display {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #7E1AE3;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f5f0ff 0%, #e8e0ff 100%);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: none;
+  }
+
+  .shuffleContainer {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .slots-container {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    background: transparent;
+    border-radius: 20px;
+    min-height: 90px;
+    align-items: center;
+  }
+  
+  .word-group {
+    display: flex;
+    gap: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .letter-slot {
+    width: 32px;
+    height: 46px;
+    background: transparent;
+    border: 3px solid #7E1AE3;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #7E1AE3;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    min-width: 40px; /* Ensure width even when empty */
+  }
+
+  .space-gap {
+    width: 16px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .letter-slot.fixed {
+    background: transparent;
+    border-color: #28a745;
+    color: #28a745;
+    animation: pulse 0.5s ease;
+  }
+
+  .letter-slot.revealed {
+    background: transparent;
+    border-color: #28a745;
+    color: #28a745;
+    animation: reveal 0.5s ease;
+  }
+
+  .letter-slot.blinking {
+    animation: blink 0.3s ease;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+
+  @keyframes reveal {
+    0% { transform: scale(0.8) rotateY(180deg); opacity: 0; }
+    100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+  }
+
+  @keyframes blink {
+    0%, 100% { 
+      opacity: 0.3;
+      transform: scale(0.95);
+    }
+    50% { 
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  .input-container {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .word-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 1rem;
+    font-size: 1rem;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    outline: none;
+    transition: all 0.15s ease-in-out;
+  }
+
+  .word-input:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+
+  .word-input:focus {
+    outline: none;
+    border-color: #7E1AE3;
+  }
+
+  .word-input.correct {
+    background-color: #e6f9e6 !important;
+    border-color: #28a745 !important;
+  }
+
+  .word-input.incorrect {
+    background-color: #ffe6e9 !important;
+    border-color: #dc3545 !important;
+  }
+
+  .buttons-container {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .check-btn,
+  .hint-btn,
+  .stop-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: lowercase;
+  }
+
+  .check-btn {
+    background-color: #7E1AE3;
+    color: white;
+  }
+
+  .check-btn:hover {
+    background-color: #6a16c7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(126, 26, 227, 0.3);
+  }
+
+  .hint-btn {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .hint-btn:hover:not(:disabled) {
+    background-color: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  }
+
+  .hint-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+
+  .feedback {
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .feedback-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+
+  .feedback-content {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+  }
+
+  .feedback-text {
+    font-weight: normal;
+    font-size: 0.85em;
+  }
+
+  @media (max-width: 768px) {
+    #shuffleWrapper {
+      padding: 1.5rem 1rem;
+    }
+
+    #shuffleWrapper .introText {
+      margin-top: 3rem;
+      font-size: 1.1rem;
+    }
+
+    .slots-container {
+      gap: 0.5rem;
+    }
+
+    .word-group {
+      gap: 0.5rem;
+    }
+
+    .letter-slot {
+      width: 28px;
+      height: 42px;
+      min-width: 32px;
+      font-size: 1.25rem;
+      border-width: 2px;
+    }
+
+    .word-input {
+      font-size: 1.2rem;
+    }
+
+    .buttons-container {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .check-btn,
+    .hint-btn,
+    .stop-btn {
+      width: 100%;
+    }
+  }
+
+  /* Mobile portrait */
+  @media (max-width: 480px) {
+    #shuffleWrapper {
+      padding: 1rem 0.5rem;
+    }
+
+    #shuffleWrapper .introText {
+      margin-top: 2.5rem;
+      font-size: 1.2rem;
+      padding: 0 0.5rem;
+    }
+
+    .slots-container {
+      gap: 0.35rem;
+    }
+
+    .word-group {
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .letter-slot {
+      width: 24px;
+      height: 36px;
+      min-width: 24px;
+      font-size: 1rem;
+      border-width: 2px;
+    }
+
+    .space-gap {
+      width: 10px;
+    }
+
+    .word-input {
+      font-size: 1.05rem;
+    }
+  }
+
+  /* Very small devices */
+  @media (max-width: 360px) {
+    #shuffleWrapper {
+      padding: 0.75rem 0.4rem;
+    }
+
+    .slots-container {
+      gap: 0.3rem;
+    }
+
+    .letter-slot {
+      width: 22px;
+      height: 34px;
+      min-width: 22px;
+      font-size: 0.95rem;
+      border-width: 2px;
+    }
+
+    .space-gap {
+      width: 8px;
+    }
+  }
+</style>

@@ -1,0 +1,118 @@
+<script type="text/javascript">
+  var woordenContext = new function () {
+    let isReadingFull = false;
+
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('wcwrapper');
+      const zin = x_currentPageXML.getAttribute('zin') || '';
+
+      // Always ensure the sentence is inside a <p> within .zinContainer
+      const zinContainer = wrapper.querySelector('.zinContainer');
+      const zinTrimmed = zin.trim();
+      if (zinTrimmed.toLowerCase().startsWith('<p')) {
+        zinContainer.innerHTML = zinTrimmed;
+      } else {
+        zinContainer.innerHTML = '<p>' + zinTrimmed + '</p>';
+      }
+
+      const strongWords = wrapper.querySelectorAll('.zinContainer strong');
+      strongWords.forEach(el => {
+        el.classList.add('clickableWord');
+        el.addEventListener('click', () => {
+          if (!isReadingFull) {
+            const word = el.textContent.trim();
+            // Remove highlight from all words
+            strongWords.forEach(w => w.classList.remove('highlight'));
+            // Highlight clicked word
+            el.classList.add('highlight');
+            stopAudio(); // Prevent overdub
+            playText(word);
+            // Remove highlight after audio plays
+            setTimeout(() => {
+              el.classList.remove('highlight');
+            }, 2000);
+          }
+        });
+      });
+
+      wrapper.querySelector('#leesZinBtn').addEventListener('click', () => {
+        isReadingFull = true;
+        stopAudio();
+        const fullText = wrapper.querySelector('.zinContainer').innerText.trim();
+        playText(fullText);
+        isReadingFull = false;
+      });
+    };
+  };
+
+  woordenContext.init();
+</script>
+
+<div id="wcwrapper" class="general-wrapper">
+  <div class="zinContainer"></div>
+  <button id="leesZinBtn" class="voorleesKnop">lees de zin voor</button>
+</div>
+
+<style>
+  #wcwrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 2rem;
+    max-width: 800px;
+    margin: auto;
+    text-align: center;
+  }
+
+  .zinContainer {
+    /* font-size: 1.4em !important; */
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    text-transform: lowercase;
+  }
+
+  .zinContainer p {
+    font-size: 1.4rem !important;
+  }
+  
+  .zinContainer strong {
+    text-transform: lowercase;
+  }
+
+  .voorleesKnop {
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    background-color: #0077cc;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .voorleesKnop:hover {
+    background-color: #005fa3;
+  }
+
+  .clickableWord {
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: #7E1AE3;
+  }
+
+  .clickableWord:hover {
+    background-color: #f5f0ff;
+  }
+
+  .clickableWord.highlight {
+    background-color: #ffd700;
+    border-radius: 3px;
+    padding: 0 3px;
+  }
+  .wc-token.highlight {
+    background-color: yellow;
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+</style>

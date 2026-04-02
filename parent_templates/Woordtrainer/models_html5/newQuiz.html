@@ -1,0 +1,325 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+  var newQuiz = new function () {
+    let currentIndex = 0;
+    let items = [];
+    let score = 0;
+
+    // Sound function for correct answers
+    function playSuccessSound() {
+      try {
+        // Create a simple success sound using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {
+      }
+    }
+
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('wnawrapper');
+      if (!wrapper) return;
+
+      const intro = x_currentPageXML.getAttribute('text') || '';
+      wrapper.querySelector('.introText').innerHTML = x_addLineBreaks(intro);
+      items = Array.from(x_currentPageXML.getElementsByTagName('woordItem'));
+
+      if (items.length === 0) {
+        wrapper.querySelector('.matchContainer').innerHTML = '<p style="color:red;">Geen woord-items gevonden.</p>';
+        return;
+      }
+
+      // Disable next button at the top initially
+      const topBtn = document.getElementById('x_nextBtn_top');
+      if (topBtn) {
+        topBtn.disabled = true;
+        topBtn.classList.add('ui-state-disabled');
+        topBtn.setAttribute('aria-disabled', 'true');
+      }
+
+      currentIndex = 0;
+      score = 0;
+      renderItem();
+    };
+
+    function renderItem() {
+      const wrapper = document.getElementById('wnawrapper');
+      const container = wrapper.querySelector('.matchContainer');
+      container.innerHTML = ''; // clear previous
+
+      const itemXML = items[currentIndex];
+      const optionsRaw = itemXML.getAttribute('options') || '';
+      const correct = itemXML.getAttribute('correct')?.trim();
+      const imageHTML = itemXML.getAttribute('imageHtml') || '';
+      const retryTxt = itemXML.getAttribute('retryBtnTxt') || 'probeer opnieuw';
+
+      if (!correct || !optionsRaw || !imageHTML) {
+        container.innerHTML = `<p style="color:red;">Fout in item ${currentIndex + 1}. Vul alle velden in.</p>`;
+        return;
+      }
+
+      const shuffled = optionsRaw.split('|').map(w => w.trim()).sort(() => Math.random() - 0.5);
+
+      const itemBlock = document.createElement('div');
+      itemBlock.className = 'wnaItemBlock';
+
+      itemBlock.innerHTML = `
+        <div class="imageWrapper">${imageHTML}</div>
+        <div class="options"></div>
+        <div class="feedback"></div>
+        <div class="btnHolder"></div>
+      `;
+
+      const optionsDiv = itemBlock.querySelector('.options');
+      const feedback = itemBlock.querySelector('.feedback');
+      const btnHolder = itemBlock.querySelector('.btnHolder');
+
+      shuffled.forEach(word => {
+        const div = document.createElement('div');
+        div.className = 'wordBox';
+        div.innerText = word;
+        div.onclick = () => {
+          if (div.classList.contains('disabled')) return;
+
+          const isCorrect = word === correct;
+          feedback.innerHTML = `
+            <div class="feedback-message">
+              <div class="feedback-content">
+                <span class="feedback-text" style="color: ${isCorrect ? '#00aa00' : '#cc0000'};">${isCorrect ? 'goed gedaan!' : 'Helaas, probeer het opnieuw.'}</span>
+              </div>
+            </div>
+          `;
+
+          if (isCorrect) {
+            score++;
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              playSuccessSound();
+              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+              setTimeout(() => confetti.reset(), 1000);
+            }
+            disableOptions(optionsDiv);
+            if (window.wtMarkExerciseDone) wtMarkExerciseDone('newQuiz');
+            showNextButton(btnHolder);
+          } else {
+            div.classList.add('wrong');
+          }
+        };
+        optionsDiv.appendChild(div);
+      });
+
+      container.appendChild(itemBlock);
+    }
+
+    function disableOptions(container) {
+      const options = container.querySelectorAll('.wordBox');
+      options.forEach(opt => {
+        opt.classList.add('disabled');
+        opt.style.pointerEvents = 'none';
+      });
+    }
+
+    function showNextButton(holder) {
+      const btn = document.createElement('button');
+      btn.className = 'nextButton';
+      btn.innerText = currentIndex < items.length - 1 ? 'Volgende' : 'Bekijk resultaat';
+      btn.onclick = () => {
+        currentIndex++;
+        if (currentIndex < items.length) {
+          renderItem();
+        } else {
+          showFinalFeedback();
+        }
+      };
+      holder.appendChild(btn);
+    }
+
+    function showFinalFeedback() {
+      const wrapper = document.getElementById('wnawrapper');
+      const container = wrapper.querySelector('.matchContainer');
+
+      const success = score === items.length;
+
+      // Ensure progress stored once quiz is completed (regardless of success)
+      if (window.wtMarkExerciseDone) wtMarkExerciseDone('newQuiz');
+
+      container.innerHTML = `
+        <div class="finalFeedback">
+          <div class="feedback-message">
+            <div class="feedback-content">
+              <span class="feedback-text">
+                ${success
+                  ? "Fantastisch! Je hebt alles goed 🎉"
+                  : `Je had ${score} van de ${items.length} goed. Probeer het opnieuw.`
+                }
+              </span>
+            </div>
+          </div>
+          <button class="resetButton" onclick="woordNaarAfbeelding.init()">Opnieuw</button>
+        </div>
+      `;
+
+      // Enable top next button if all correct
+      const topBtn = document.getElementById('x_nextBtn_top');
+      if (topBtn) {
+        topBtn.disabled = !success;
+        topBtn.classList.toggle('ui-state-disabled', !success);
+        topBtn.setAttribute('aria-disabled', !success);
+      }
+    }
+  };
+
+  newQuiz.init();
+</script>
+
+<style>
+  #wnawrapper .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+    font-family: "Segoe UI", sans-serif;
+  }
+
+  #wnawrapper .matchContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  #wnawrapper .wnaItemBlock {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  #wnawrapper .imageWrapper img {
+    max-width: 300px;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    display: block;
+    margin: 0 auto;
+  }
+
+  #wnawrapper .options {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 1.2rem;
+  }
+
+  #wnawrapper .wordBox {
+    background: #f9f9f9;
+    border: 2px solid #ccc;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+  }
+
+  #wnawrapper .wordBox:hover {
+    background-color: #eef;
+    transform: scale(1.05);
+  }
+
+  #wnawrapper .wordBox.wrong {
+    border-color: #cc0000;
+    background-color: #fee;
+  }
+
+  #wnawrapper .wordBox.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  #wnawrapper .feedback {
+    margin-top: 1em;
+    position: static !important;
+    font-weight: bold;
+    text-align: center;
+    font-size: 1.2em;
+    min-height: 1.5em;
+  }
+
+  #wnawrapper .btnHolder {
+    margin-top: 1.5em;
+    text-align: center;
+  }
+
+  #wnawrapper .nextButton,
+  #wnawrapper .resetButton {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #0077cc;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  #wnawrapper .nextButton:hover,
+  #wnawrapper .resetButton:hover {
+    background-color: #005fa3;
+  }
+
+  #wnawrapper .finalFeedback {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-top: 2rem;
+  }
+
+  .feedback-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+
+  .feedback-content {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    
+    border: 2px solid transparent;
+  }
+
+  .feedback-text {
+    font-weight: 600;
+    font-size: 1.1em;
+  }
+
+  
+</style>
+
+<div id="wnawrapper" class="general-wrapper">
+  <div class="introText"></div>
+  <div class="matchContainer general-wrapper"></div>
+</div>

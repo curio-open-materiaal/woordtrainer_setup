@@ -1,0 +1,31 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <beeldNaarWoord><![CDATA[
+        <beeldNaarWoord name="Overtypen"
+          text="Beluister en typ het juiste woord."
+          imageHtml="&lt;img src='media/apple.jpg' /&gt;"
+          correctWord="appel"
+          toonAlsGalgje="true"
+          toonSpeaker="false"
+        />
+      ]]></beeldNaarWoord>
+    </newNodes>
+  </pageWizard>
+
+  <beeldNaarWoord
+    menu="Woordtrainer"
+    menuItem="Beeld naar Woord"
+    hint="Toon een afbeelding en laat de gebruiker het juiste woord typen. Optioneel wordt het woord als galgje weergegeven."
+    icon="icTextFields"
+    thumb="thumbs/textInput.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true" />
+    <imageHtml label="woord of context zin" type="Text" wysiwyg="false" height="80"/>
+    <correctWord label="Correcte woord (zonder hoofdletters)" type="TextInput"/>
+    <toonAlsGalgje label="Toon als galgje?" type="Checkbox"/>
+    <toonSpeaker label="Toon luidsprekertje om woord uit te spreken?" type="Checkbox"/>
+    
+  </beeldNaarWoord>
+</wizard>

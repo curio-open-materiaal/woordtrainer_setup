@@ -1,0 +1,22 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="false">
+    <newNodes>
+      <woordenLijstExtendedCustom><![CDATA[
+<woordenLijstExtendedCustom name="Woordenlijst Extended Custom"/>
+      ]]></woordenLijstExtendedCustom>
+    </newNodes>
+  </pageWizard>
+
+  <woordenLijstExtendedCustom
+  menu="Woordtrainer"
+  menuItem="Woordenlijst Extended Custom"
+  hint="Kies je eigen woorden (max 15) uit alle beschikbare woordenlijsten om te oefenen. Scores worden globaal bijgehouden."
+  icon="icList"
+  thumb="thumbs/list.jpg"
+  remove="true">
+
+  <name label="Pagina Titel" type="TextInput" wysiwyg="true" />
+  <wordListText label="Woordenlijst" type="TextArea" height="400" placeholder="Voer woorden in met het volgende formaat:&#10;&#10;woord:betekenis&#10;contextzin (i): impliciete contextzin&#10;contextzin (e): expliciete contextzin&#10;&#10;woord2:betekenis2&#10;contextzin (i): ..."/>
+	
+  </woordenLijstExtendedCustom>
+</wizard>

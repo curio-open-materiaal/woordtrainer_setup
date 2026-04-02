@@ -1,0 +1,894 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+    var beeldNaarWoord = new function () {
+        let correctWord = '';
+        let showHangman = false;
+        let guessedLetters = [];
+        let showSpeaker = false;
+
+        // Sound function for correct answers
+        function playSuccessSound() {
+            try {
+                // Create a simple success sound using Web Audio API
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+            }
+        }
+
+        let exerciseStarted = false;
+        let fadeTimeouts = [];
+
+        function startExercise() {
+            if (exerciseStarted) return;
+            exerciseStarted = true;
+
+            const wrapper = document.getElementById('bnwwrapper');
+            const fadeMessage = wrapper.querySelector('#fadeMessage');
+            const imageContent = wrapper.querySelector('.imageContent');
+            const input = wrapper.querySelector('#userInput');
+            const instructionModal = document.getElementById('instructionModal');
+            
+            // Hide the instruction modal
+            if (instructionModal) {
+                instructionModal.style.display = 'none';
+            }
+
+            // Clear any existing timeouts
+            fadeTimeouts.forEach(clearTimeout);
+            fadeTimeouts = [];
+
+            // Make sure fade message and image content are visible before starting timer
+            if (!showHangman && fadeMessage) {
+                fadeMessage.style.display = 'block';
+                fadeMessage.style.opacity = '1';
+                fadeMessage.style.visibility = 'visible';
+            }
+
+            if (!showHangman && imageContent) {
+                imageContent.style.opacity = '1';
+                imageContent.style.visibility = 'visible';
+            }
+
+            // Start the fade timer after 3 seconds (only when NOT hangman)
+            if (!showHangman && fadeMessage) {
+                const timeout1 = setTimeout(() => {
+                    fadeMessage.style.transition = 'opacity 0.5s ease-out';
+                    fadeMessage.style.opacity = '0';
+                    setTimeout(() => {
+                        fadeMessage.style.visibility = 'hidden';
+                    }, 500);
+                }, 3000);
+                fadeTimeouts.push(timeout1);
+            }
+
+            if (!showHangman && imageContent) {
+                const timeout2 = setTimeout(() => {
+                    imageContent.style.transition = 'opacity 0.5s ease-out';
+                    imageContent.style.opacity = '0';
+                    setTimeout(() => {
+                        imageContent.style.visibility = 'hidden';
+                    }, 500);
+                }, 3000);
+                fadeTimeouts.push(timeout2);
+            }
+            
+            // Auto-focus on the input field
+            if (input) {
+                setTimeout(() => {
+                    try {
+                        input.focus();
+                    } catch(e) {
+                        // Ignore focus errors
+                    }
+                }, 300);
+            }
+        }
+
+        this.init = function () {
+            document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+            const wrapper = document.getElementById('bnwwrapper');
+            const intro = 'Bekijk het woord of de tekst en typ het woord wat hier bij past.';
+            const originalWord = (x_currentPageXML.getAttribute('correctWord') || '').trim();
+            // Count words: apply lowercase only for 1 or 2 words
+            const wordCount = originalWord.trim().split(/\s+/).filter(w => w.length > 0).length;
+            const shouldBeLowercase = wordCount <= 2;
+            correctWord = shouldBeLowercase ? originalWord.toLowerCase() : originalWord;
+            showHangman = (x_currentPageXML.getAttribute('toonAlsGalgje') || 'false') === 'true';
+            showSpeaker = (x_currentPageXML.getAttribute('toonSpeaker') || 'false') === 'true';
+
+            guessedLetters = Array(correctWord.length).fill('').map((_, i) => {
+                // Preserve spaces in the original word
+                return correctWord[i] === ' ' ? ' ' : '';
+            });
+            
+            // Apply text-transform lowercase only for 1 or 2 words
+            const hangmanEl = wrapper.querySelector('#hangman');
+            if (hangmanEl && shouldBeLowercase) {
+                hangmanEl.style.textTransform = 'lowercase';
+            } else if (hangmanEl) {
+                hangmanEl.style.textTransform = 'none';
+            }
+            
+            // Apply text-transform lowercase to all elements in wrapper container only for 1 or 2 words
+            const matchContainer = wrapper.querySelector('.matchContainer');
+            if (matchContainer) {
+                // Check .imageContent p and spans
+                const imageContent = matchContainer.querySelector('.imageContent');
+                if (imageContent) {
+                    const paragraphs = imageContent.querySelectorAll('p, p span');
+                    paragraphs.forEach(el => {
+                        if (shouldBeLowercase) {
+                            el.style.textTransform = 'lowercase';
+                        } else {
+                            el.style.textTransform = 'none';
+                        }
+                    });
+                }
+                
+                // Check all other elements in wnaItemBlock that might need text-transform
+                const wnaItemBlock = matchContainer.querySelector('.wnaItemBlock');
+                if (wnaItemBlock) {
+                    // Check all p, span elements in the wrapper container
+                    const allTextElements = wnaItemBlock.querySelectorAll('p, span, div:not(.imageWrapper):not(.soundIcon)');
+                    allTextElements.forEach(el => {
+                        // Skip if it's already handled (imageContent) or if it's a structural element
+                        if (!el.closest('.imageContent') && el.textContent.trim()) {
+                            if (shouldBeLowercase) {
+                                el.style.textTransform = 'lowercase';
+                            } else {
+                                el.style.textTransform = 'none';
+                            }
+                        }
+                    });
+                }
+            }
+
+            wrapper.querySelector('.introText').innerHTML = x_addLineBreaks(intro);
+            wrapper.querySelector('.imageContent').innerHTML = x_currentPageXML.getAttribute('imageHtml') || '';
+
+            const image = wrapper.querySelector('.imageWrapper');
+            const soundIcon = wrapper.querySelector('.soundIcon');
+
+            if (showSpeaker) {
+                soundIcon.style.display = 'block';
+                image.addEventListener('click', () => {
+                    const utterance = new SpeechSynthesisUtterance(correctWord);
+                    utterance.lang = 'nl-NL';
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utterance);
+                });
+            } else {
+                soundIcon.style.display = 'none';
+            }
+
+            const input = wrapper.querySelector('#userInput');
+            const feedback = wrapper.querySelector('#feedback');
+            const hangman = wrapper.querySelector('#hangman');
+            const checkBtn = wrapper.querySelector('#checkButton');
+            const retryBtn = wrapper.querySelector('#retryButton');
+            const hintBtn = wrapper.querySelector('#hintButton');
+            const fadeMessage = wrapper.querySelector('#fadeMessage');
+
+            // Show instruction modal first (only when NOT hangman mode)
+            if (!showHangman) {
+                const instructionModal = document.getElementById('instructionModal');
+                if (instructionModal) {
+                    instructionModal.style.display = 'flex';
+                    // Don't start the exercise automatically - wait for user to click start
+                    // Hide fade message and pause content visibility until start is clicked
+                    if (fadeMessage) {
+                        fadeMessage.style.display = 'none';
+                    }
+                    
+                    // Add click handler to start button
+                    const startBtn = document.getElementById('startExerciseBtn');
+                    if (startBtn) {
+                        startBtn.onclick = () => {
+                            startExercise();
+                        };
+                    }
+                }
+            } else {
+                // In hangman mode, hide fade message immediately and don't show modal
+                if (fadeMessage) {
+                    fadeMessage.style.display = 'none';
+                }
+                // Auto-focus on the input field in hangman mode
+                if (input) {
+                    setTimeout(() => {
+                        try {
+                            input.focus();
+                        } catch(e) {
+                            // Ignore focus errors
+                        }
+                    }, 300);
+                }
+            }
+
+            // Hint button functionality
+            function giveHint() {
+                if (showHangman) {
+                    // Hangman mode: use guessedLetters array
+                    // Find all empty positions (excluding spaces)
+                    const emptyPositions = [];
+                    for (let i = 0; i < correctWord.length; i++) {
+                        // Skip spaces - they should always be visible
+                        if (correctWord[i] === ' ') {
+                            guessedLetters[i] = ' '; // Ensure space is set
+                            continue;
+                        }
+                        if (!guessedLetters[i] || guessedLetters[i] === '') {
+                            emptyPositions.push(i);
+                        }
+                    }
+
+                    if (emptyPositions.length === 0) {
+                        // All letters are revealed, disable hint button
+                        if (hintBtn) {
+                            hintBtn.disabled = true;
+                            hintBtn.textContent = 'alle letters bekend';
+                        }
+                        return;
+                    }
+
+                    // Pick a random empty position
+                    const randomIndex = Math.floor(Math.random() * emptyPositions.length);
+                    const position = emptyPositions[randomIndex];
+                    
+                    // Reveal the correct letter at this position
+                    guessedLetters[position] = correctWord[position];
+                    
+                    // Update the hangman display only (don't modify input field)
+                    updateHangmanDisplay(hangman);
+                    
+                    // Check if all letters are now revealed
+                    const remainingEmpty = guessedLetters.filter(l => !l || l === '').length;
+                    if (remainingEmpty === 0) {
+                        if (hintBtn) {
+                            hintBtn.disabled = true;
+                            hintBtn.textContent = 'alle letters bekend';
+                        }
+                        // Show success message and disable input
+                        if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                            XENITH.FEEDBACK.showSuccess({
+                                container: document.getElementById('x_pageDiv'),
+                                message: 'goed gedaan!',
+                                showConfetti: true,
+                                playSound: true
+                            });
+                        } else {
+                            feedback.innerHTML = `
+                                <div class="feedback-message">
+                                    <div class="feedback-content">
+                                        <span class="feedback-text" style="color: green;">goed gedaan!</span>
+                                    </div>
+                                </div>
+                            `;
+                            playSuccessSound();
+                            confetti({
+                                particleCount: 100,
+                                spread: 70,
+                                origin: { y: 0.6 }
+                            });
+                            setTimeout(() => confetti.reset(), 1000);
+                        }
+                        if (window.wtMarkExerciseDone) wtMarkExerciseDone('beeldNaarWoord');
+                        input.disabled = true;
+                        if (window.wtRecordAttempt) window.wtRecordAttempt('beeldNaarWoord', correctWord, true);
+                    }
+                } else {
+                    // Normal mode: check which positions are already correct
+                    let currentInput = input.value || '';
+                    const alreadyCorrect = [];
+                    for (let i = 0; i < Math.min(currentInput.length, correctWord.length); i++) {
+                        if (currentInput[i].toLowerCase() === correctWord[i].toLowerCase()) {
+                            alreadyCorrect.push(i);
+                        }
+                    }
+                    
+                    // Find positions that still need hints (in order: first letter, then sequential, then others)
+                    const needHint = [];
+                    for (let i = 0; i < correctWord.length; i++) {
+                        if (!alreadyCorrect.includes(i)) {
+                            needHint.push(i);
+                        }
+                    }
+                    
+                    if (needHint.length === 0) {
+                        // All positions are correct, disable hint button
+                        if (hintBtn) {
+                            hintBtn.disabled = true;
+                            hintBtn.textContent = 'alle letters bekend';
+                        }
+                        return;
+                    }
+                    
+                    // Determine which position to reveal based on priority:
+                    // 1. First letter (position 0) if not already correct
+                    // 2. Then sequential order (position 1, 2, 3, etc.)
+                    // 3. Then other letters
+                    let position;
+                    if (needHint.includes(0)) {
+                        // First letter has priority
+                        position = 0;
+                    } else {
+                        // Find the first sequential position (lowest index)
+                        position = Math.min(...needHint);
+                    }
+                    
+                    // Update the input field with the correct letter at this position
+                    let inputArray = currentInput.split('');
+                    // Ensure array is long enough
+                    while (inputArray.length < correctWord.length) {
+                        inputArray.push('');
+                    }
+                    // Set the correct letter at this position
+                    inputArray[position] = correctWord[position];
+                    input.value = inputArray.join('');
+                    
+                    // Check if all positions are now correct
+                    const newInput = input.value;
+                    let allCorrect = true;
+                    for (let i = 0; i < correctWord.length; i++) {
+                        if (i >= newInput.length || newInput[i].toLowerCase() !== correctWord[i].toLowerCase()) {
+                            allCorrect = false;
+                            break;
+                        }
+                    }
+                    if (allCorrect && hintBtn) {
+                        hintBtn.disabled = true;
+                        hintBtn.textContent = 'alle letters bekend';
+                    }
+                }
+            }
+
+            if (hintBtn) {
+                hintBtn.addEventListener('click', giveHint);
+                // Show hint button in both modes
+                hintBtn.style.display = 'inline-block';
+            }
+
+            if (showHangman) {
+                checkBtn.style.display = 'none';
+                input.addEventListener('input', () => {
+                    const userInputRaw = input.value.trim();
+                    const userInput = shouldBeLowercase ? userInputRaw.toLowerCase() : userInputRaw;
+                    let incorrect = 0;
+
+                    // Update guessed letters - keep correct ones, clear incorrect ones
+                    for (let i = 0; i < correctWord.length; i++) {
+                        const correctChar = correctWord[i];
+                        
+                        // Always show spaces
+                        if (correctChar === ' ') {
+                            guessedLetters[i] = ' ';
+                            continue;
+                        }
+                        
+                        const userChar = userInput[i];
+                        if (userChar) {
+                            // Case-insensitive comparison
+                            if (userChar.toLowerCase() === correctChar.toLowerCase()) {
+                                guessedLetters[i] = correctChar; // Preserve original case from correctWord
+                            } else {
+                                incorrect++;
+                            }
+                        }
+                    }
+
+                    // Count remaining empty positions (excluding spaces)
+                    const emptyCount = guessedLetters.filter((l, i) => l === '' && correctWord[i] !== ' ').length;
+
+                    feedback.innerHTML = `
+                        <div class="feedback-message">
+                            <div class="feedback-content">
+                                <span class="feedback-text">Aantal foute of niet ingevulde letters: ${incorrect + emptyCount}</span>
+                            </div>
+                        </div>
+                    `;
+                    if (incorrect === 0 && emptyCount === 0) {
+                        if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                            XENITH.FEEDBACK.showSuccess({
+                                container: document.getElementById('x_pageDiv'),
+                                message: 'goed gedaan!',
+                                showConfetti: true,
+                                playSound: true
+                            });
+                        } else {
+                            feedback.innerHTML = `
+                                <div class="feedback-message">
+                                    <div class="feedback-content">
+                                        <span class="feedback-text" style="color: green;">goed gedaan!</span>
+                                    </div>
+                                </div>
+                            `;
+                            playSuccessSound();
+                            confetti({
+                                particleCount: 100,
+                                spread: 70,
+                                origin: { y: 0.6 }
+                            });
+                            setTimeout(() => confetti.reset(), 1000);
+                        }
+                        if (window.wtMarkExerciseDone) wtMarkExerciseDone('beeldNaarWoord');
+                        input.disabled = true;
+                        if (hintBtn) {
+                            hintBtn.disabled = true;
+                            hintBtn.textContent = 'alle letters bekend';
+                        }
+                        if (window.wtRecordAttempt) window.wtRecordAttempt('beeldNaarWoord', correctWord, true);
+                    } else {
+                        if (window.wtRecordAttempt) window.wtRecordAttempt('beeldNaarWoord', correctWord, false, userInput);
+                    }
+                    updateHangmanDisplay(hangman);
+                });
+
+                updateHangmanDisplay(hangman);
+            } else {
+                hangman.style.display = 'none';
+                checkBtn.style.display = 'inline-block';
+
+                checkBtn.addEventListener('click', () => {
+                    const userInputRaw = input.value.trim();
+                    const userInput = shouldBeLowercase ? userInputRaw.toLowerCase() : userInputRaw;
+                    const correctLength = correctWord.length;
+                    const inputLength = userInput.length;
+
+                    // Always compare case-insensitively
+                    const isCorrect = userInput.toLowerCase() === correctWord.toLowerCase();
+                    
+                    if (isCorrect) {
+                        if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                            XENITH.FEEDBACK.showSuccess({
+                                container: document.getElementById('x_pageDiv'),
+                                message: 'goed gedaan!',
+                                showConfetti: true,
+                                playSound: true
+                            });
+                        } else {
+                            playSuccessSound();
+                            confetti({
+                                particleCount: 100,
+                                spread: 70,
+                                origin: { y: 0.6 }
+                            });
+                            setTimeout(() => confetti.reset(), 1000);
+                            feedback.innerHTML = `
+                                <div class="feedback-message">
+                                    <div class="feedback-content">
+                                        <span class="feedback-text" style="color: green;">goed gedaan!</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        if (window.wtRecordAttempt) window.wtRecordAttempt('beeldNaarWoord', correctWord, true);
+                        checkBtn.style.display = 'none'; // Hide check button on correct answer
+                        retryBtn.style.display = 'none'; // Hide retry button on correct answer
+                    } else {
+                        if (window.wtRecordAttempt) window.wtRecordAttempt('beeldNaarWoord', correctWord, false, userInput);
+                        let incorrect = 0;
+
+                        for (let i = 0; i < Math.min(correctLength, inputLength); i++) {
+                            const correctChar = correctWord[i];
+                            const userChar = userInput[i];
+                            if (userChar && correctChar && userChar.toLowerCase() !== correctChar.toLowerCase()) {
+                                incorrect++;
+                            }
+                        }
+
+                        if (inputLength > correctLength) {
+                            const tooMany = inputLength - correctLength;
+                            feedback.innerHTML = `
+                                <div class="feedback-message">
+                                    <div class="feedback-content">
+                                        <span class="feedback-text" style="color: #a00;">❌ ${tooMany} letter${tooMany === 1 ? '' : 's'} te veel.</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (inputLength < correctLength) {
+                            const missing = correctLength - inputLength;
+                            feedback.innerHTML = `
+                                <div class="feedback-message">
+                                    <div class="feedback-content">
+                                        <span class="feedback-text" style="color: #a00;">❌ ${missing} letter${missing === 1 ? '' : 's'} ${missing === 1 ? 'ontbreekt' : 'ontbreken'}.</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (incorrect > 0) {
+                            feedback.innerHTML = `
+                                <div class="feedback-message">
+                                    <div class="feedback-content">
+                                        <span class="feedback-text" style="color: #a00;">❌ ${incorrect} letter${incorrect === 1 ? '' : 's'} ${incorrect === 1 ? 'is' : 'zijn'} fout.</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            feedback.innerHTML = `
+                                <div class="feedback-message">
+                                    <div class="feedback-content">
+                                        <span class="feedback-text" style="color: #a00;">❌ Er is iets mis met de invoer.</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Show retry button after incorrect answer, hide check button
+                        checkBtn.style.display = 'none';
+                        retryBtn.style.display = 'inline-block';
+                    }
+                });
+
+            }
+
+            // Add retry button functionality
+            if (retryBtn) {
+                retryBtn.addEventListener('click', () => {
+                    // Reset the quiz state
+                    input.value = '';
+                    feedback.innerHTML = '';
+                    checkBtn.style.display = 'inline-block';
+                    checkBtn.disabled = false;
+                    retryBtn.style.display = 'none';
+                    
+                    // Reset guessed letters
+                    guessedLetters = Array(correctWord.length).fill('').map((_, i) => {
+                        // Preserve spaces in the original word
+                        return correctWord[i] === ' ' ? ' ' : '';
+                    });
+                    if (hintBtn) {
+                        hintBtn.disabled = false;
+                        hintBtn.textContent = 'geef hint';
+                    }
+                    if (showHangman && hangman) {
+                        updateHangmanDisplay(hangman);
+                    }
+                    
+                    // Clear any existing timeouts
+                    fadeTimeouts.forEach(clearTimeout);
+                    fadeTimeouts = [];
+                    
+                    // Reset exercise started flag for retry
+                    exerciseStarted = false;
+                    
+                    // Hide instruction modal if visible
+                    const instructionModal = document.getElementById('instructionModal');
+                    if (instructionModal) {
+                        instructionModal.style.display = 'none';
+                    }
+                    
+                    // Get elements again (they might not be in scope)
+                    const wrapper = document.getElementById('bnwwrapper');
+                    const fadeMessageRetry = wrapper.querySelector('#fadeMessage');
+                    const imageContentRetry = wrapper.querySelector('.imageContent');
+                    
+                    // Reset image content and fade message visibility
+                    if (imageContentRetry) {
+                        imageContentRetry.style.opacity = '1';
+                        imageContentRetry.style.visibility = 'visible';
+                        imageContentRetry.style.transition = '';
+                    }
+                    if (fadeMessageRetry) {
+                        fadeMessageRetry.style.display = 'block';
+                        fadeMessageRetry.style.opacity = '1';
+                        fadeMessageRetry.style.visibility = 'visible';
+                        fadeMessageRetry.style.transition = '';
+                        if (showHangman) {
+                            fadeMessageRetry.style.display = 'none';
+                        }
+                    }
+                    
+                    // Immediately restart the exercise timer (only when NOT hangman)
+                    if (!showHangman) {
+                        // Wait a tiny bit to ensure visibility is reset, then start timer
+                        setTimeout(() => {
+                            // Start the fade timer after 3 seconds again
+                            if (fadeMessageRetry) {
+                                fadeMessageRetry.style.transition = 'opacity 0.5s ease-out';
+                                const timeout1 = setTimeout(() => {
+                                    fadeMessageRetry.style.transition = 'opacity 0.5s ease-out';
+                                    fadeMessageRetry.style.opacity = '0';
+                                    setTimeout(() => {
+                                        fadeMessageRetry.style.visibility = 'hidden';
+                                    }, 500);
+                                }, 3000);
+                                fadeTimeouts.push(timeout1);
+                            }
+
+                            if (imageContentRetry) {
+                                imageContentRetry.style.transition = 'opacity 0.5s ease-out';
+                                const timeout2 = setTimeout(() => {
+                                    imageContentRetry.style.transition = 'opacity 0.5s ease-out';
+                                    imageContentRetry.style.opacity = '0';
+                                    setTimeout(() => {
+                                        imageContentRetry.style.visibility = 'hidden';
+                                    }, 500);
+                                }, 3000);
+                                fadeTimeouts.push(timeout2);
+                            }
+                            
+                            // Mark as started
+                            exerciseStarted = true;
+                        }, 50);
+                    }
+                    
+                    // Auto-focus on the input field after retry
+                    if (input) {
+                        setTimeout(() => {
+                            try {
+                                input.focus();
+                            } catch(e) {
+                                // Ignore focus errors
+                            }
+                        }, 300);
+                    }
+                });
+            }
+        };
+
+        function updateHangmanDisplay(hangmanEl) {
+            // Build display array, handling spaces specially
+            const displayParts = [];
+            for (let i = 0; i < guessedLetters.length; i++) {
+                if (correctWord[i] === ' ') {
+                    // For spaces in the word, add a visible gap marker
+                    // We'll use multiple spaces to make it clearly visible
+                    displayParts.push('   '); // Three spaces for clear gap
+                } else {
+                    // For letters, show the letter if guessed, or underscore
+                    displayParts.push(guessedLetters[i] ? guessedLetters[i] : '_');
+                }
+            }
+            // Join all parts with a single space between them
+            // This means: letters get 1 space between, but word spaces get 3 spaces (very visible)
+            hangmanEl.textContent = displayParts.join(' ');
+        }
+    };
+
+    beeldNaarWoord.init();
+</script>
+
+<div id="bnwwrapper" class="general-wrapper">
+    <div class="introText"></div>
+    <div class="matchContainer general-wrapper">
+        <div class="wnaItemBlock">
+            <div class="imageWrapper" >
+                <div class="imageContent"></div>
+                <div class="soundIcon">🔊</div>
+            </div>
+            <div id="fadeMessage" class="fadeMessage">woord verdwijnt na 3 seconden!</div>
+            <div id="hangman" class="hangmanDisplay"></div>
+            <input type="text" id="userInput" placeholder="Typ het woord hier..." autocomplete="off" />
+            <button id="checkButton"
+                style="display:none; margin: 0.5rem; padding: 0.5rem 1rem; font-size: 1rem; background-color: #7E1AE3; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                controleer antwoord
+            </button>
+            <button id="retryButton" class="retryButton" style="display: none;">
+                probeer opnieuw
+            </button>
+            <button id="hintButton" class="hintButton" style="display: none;">
+                geef hint
+            </button>
+        </div>
+    </div>
+    <div id="feedback"></div>
+</div>
+
+<!-- Instruction Modal -->
+<div id="instructionModal" class="instruction-modal">
+    <div class="instruction-modal-content">
+        <h2>Instructies</h2>
+        <p>Je gaat een woord zien die na 3 seconden verdwijnt.</p>
+        <p>Typ het woord dat je hebt gezien in het invoerveld.</p>
+        <button id="startExerciseBtn" class="start-button">Start</button>
+    </div>
+</div>
+
+<style>
+    .instruction-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .instruction-modal-content {
+        background-color: #ffffff;
+        padding: 2rem;
+        border-radius: 12px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        text-align: center;
+    }
+
+    .instruction-modal-content h2 {
+        margin-top: 0;
+        color: #7E1AE3;
+        font-size: 1.5rem;
+    }
+
+    .instruction-modal-content p {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #333;
+        margin: 1rem 0;
+    }
+
+    .start-button {
+        margin-top: 1.5rem;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        font-weight: bold;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .start-button:hover {
+        background-color: #6a16c7;
+    }
+
+    #bnwwrapper {
+        font-family: "Segoe UI", sans-serif;
+        padding: 1rem 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .imageContent p,
+    .imageContent p span {
+        font-size: 1.4rem !important;
+        color: #333 !important;
+        font-family: inherit;
+        text-align: center;
+        /* text-transform will be set dynamically based on whether it's a sentence */
+    }
+
+    .imageContent {
+        transition: opacity 0.5s ease-out;
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .introText {
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+        max-width: 600px;
+    }
+
+    .soundIcon {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+        padding: 6px;
+        font-size: 1.2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        pointer-events: none;
+    }
+
+    .imageWrapper {
+        margin: 0 0 1rem 0;
+        position: relative;
+        max-width: 500px;
+        max-height: 300px;
+    }
+
+    .imageWrapper img {
+        width: 100%;
+        height: auto;
+    }
+
+    .hangmanDisplay {
+        font-size: 1.5rem;
+        letter-spacing: 0.25rem;
+        margin-bottom: 1rem;
+    }
+
+    #feedback {
+        font-size: 1rem;
+        color: #333;
+        margin-top: 0.5rem;
+    }
+
+    .feedback-message {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.5rem;
+    }
+
+    .feedback-content {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        
+        border: 2px solid transparent;
+    }
+
+    .feedback-text {
+        font-weight: 600;
+        font-size: 1.1em;
+    }
+
+    .fadeMessage {
+        font-size: 1.1rem;
+        color: #7E1AE3;
+        text-align: center;
+        margin: 1rem 0;
+        padding: 0.5rem;
+        background-color: #f0f0f0;
+        border-radius: 5px;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.5s ease-out;
+    }
+
+    .retryButton {
+        margin: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .retryButton:hover {
+        background-color: #6a16c7;
+    }
+
+    .hintButton {
+        margin: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        font-weight: bold;
+    }
+
+    .hintButton:hover:not(:disabled) {
+        background-color: #6a16c7;
+    }
+
+    .hintButton:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+</style>

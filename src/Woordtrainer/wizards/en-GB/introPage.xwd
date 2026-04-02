@@ -1,0 +1,23 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="false">
+    <newNodes>
+      <introPage><![CDATA[
+        <introPage name="intro pagina"
+          woordenSet="naam woordenset"
+          woordenSetSubtitle="subtitel/subset woordenset"
+        />
+      ]]></introPage>
+    </newNodes>
+  </pageWizard>
+
+  <introPage
+    menu="Woordtrainer"
+    menuItem="intro pagina"
+    hint="Intro pagina voor de woordtrainer"
+    icon="icLayers"
+    thumb="thumbs/hotspotImage.jpg"
+    remove="true">
+      <woordenSet label="Woordenset" type="TextInput" wysiwyg="true"/>
+      <woordenSetSubtitle label="Woordenset subtitel" type="TextInput"/>
+  </introPage>
+</wizard>

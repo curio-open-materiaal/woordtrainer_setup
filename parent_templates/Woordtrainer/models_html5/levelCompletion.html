@@ -1,0 +1,858 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+    var levelCompletion = new function () {
+        this.init = function () {
+            document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+            const wrapper = document.getElementById('completionWrapper');
+            if (!wrapper) return;
+
+            const level = parseInt(x_currentPageXML.getAttribute('level') || '1');
+            const levelStartIndex = parseInt(x_currentPageXML.getAttribute('levelStartIndex') || '0');
+            const levelEndIndex = parseInt(x_currentPageXML.getAttribute('levelEndIndex') || '0');
+            const nextLevelStartIndex = parseInt(x_currentPageXML.getAttribute('nextLevelStartIndex') || '-1');
+
+            // Convert virtual indices to actual page indices
+            var baseIndex = 0;
+            if (typeof x_pageInfo !== 'undefined' && typeof x_virtualPages !== 'undefined' && x_virtualPages && x_virtualPages.length > 0) {
+                baseIndex = x_pageInfo.length - x_virtualPages.length;
+            }
+
+            // Display level completion message
+            const levelTitle = document.getElementById('levelTitle');
+            levelTitle.innerHTML = '<span class="celebration-icon">🎉</span><br>level ' + level + ' afgerond!';
+
+            // Display celebration message
+            const messageDiv = document.getElementById('celebrationMessage');
+            if (level === 3) {
+                messageDiv.innerHTML = '<p class="celebration-text">Geweldig gedaan! Je hebt alle levels voltooid!</p>';
+            } else {
+                messageDiv.innerHTML = '<p class="celebration-text">Fantastisch! Je hebt level ' + level + ' met succes afgerond!</p>';
+            }
+
+            // Setup buttons
+            const buttonsDiv = document.getElementById('buttons');
+            buttonsDiv.innerHTML = '';
+
+            // "Bekijk voortgang" button above the rest
+            const progressBtn = document.createElement('button');
+            progressBtn.className = 'completion-btn progress-btn';
+            progressBtn.textContent = 'bekijk voortgang';
+            progressBtn.onclick = function() {
+                openProgressModal();
+            };
+            buttonsDiv.appendChild(progressBtn);
+
+            // Row for level actions (opnieuw oefenen / doorgaan / colofon)
+            const buttonsRow = document.createElement('div');
+            buttonsRow.className = 'buttons-row';
+
+            // Leeg current-level stats bij start (opnieuw) van een level
+            function clearCurrentLevelStats() {
+                try {
+                    var key = 'wt:currentLevelStats:' + (location.pathname || '') + (location.search || '');
+                    localStorage.setItem(key, '{}');
+                } catch (e) {}
+            }
+
+            // Always show "Level opnieuw oefenen" button
+            const repeatBtn = document.createElement('button');
+            repeatBtn.className = 'completion-btn repeat-btn';
+            repeatBtn.textContent = 'level ' + level + ' opnieuw oefenen';
+            repeatBtn.onclick = function() {
+                if (typeof x_regenerateLevelExercises === 'function') {
+                    x_regenerateLevelExercises(level);
+                }
+                clearCurrentLevelStats();
+                this.resetLevelProgress(levelStartIndex, levelEndIndex, baseIndex);
+                x_changePage(baseIndex + levelStartIndex);
+            }.bind(this);
+            buttonsRow.appendChild(repeatBtn);
+
+            // Show "Doorgaan naar volgende level" if not level 3
+            if (level < 3 && nextLevelStartIndex >= 0) {
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'completion-btn next-btn';
+                nextBtn.textContent = 'doorgaan naar level ' + (level + 1);
+                nextBtn.onclick = function() {
+                    clearCurrentLevelStats();
+                    x_changePage(baseIndex + nextLevelStartIndex);
+                };
+                buttonsRow.appendChild(nextBtn);
+            }
+
+            // Show "Naar colofon" button if level 3
+            if (level === 3) {
+                const finishBtn = document.createElement('button');
+                finishBtn.className = 'completion-btn finish-btn';
+                finishBtn.textContent = 'naar colofon';
+                finishBtn.onclick = function() {
+                    // Navigate to colofon (last page)
+                    if (typeof x_virtualPages !== 'undefined' && x_virtualPages.length > 0) {
+                        var colofonIndex = -1;
+                        for (var i = x_virtualPages.length - 1; i >= 0; i--) {
+                            if (x_virtualPages[i].type === 'colofon') {
+                                colofonIndex = i;
+                                break;
+                            }
+                        }
+                        if (colofonIndex >= 0) {
+                            x_changePage(baseIndex + colofonIndex);
+                        }
+                    }
+                };
+                buttonsRow.appendChild(finishBtn);
+            }
+
+            buttonsDiv.appendChild(buttonsRow);
+
+            // Show confetti for completion
+            try {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                // Show again after a delay for extra celebration
+                setTimeout(() => {
+                    confetti({
+                        particleCount: 100,
+                        spread: 60,
+                        origin: { y: 0.5 }
+                    });
+                }, 300);
+            } catch(e) {}
+
+            x_pageLoaded();
+            
+            // Hide the default "next" buttons (both top and bottom) after page is loaded
+            setTimeout(function() {
+                if (typeof $ !== 'undefined') {
+                    $('#x_nextBtn').hide();
+                    $('#x_nextBtn_top').hide();
+                    $('.x_nextBtn').hide();
+                }
+                var nextBtn = document.getElementById('x_nextBtn');
+                if (nextBtn) nextBtn.style.display = 'none';
+                var nextBtnTop = document.getElementById('x_nextBtn_top');
+                if (nextBtnTop) nextBtnTop.style.display = 'none';
+            }, 100);
+        };
+
+        this.resetLevelProgress = function(startIndex, endIndex, baseIndex) {
+            try {
+                const prefix = 'wt:stats:' + (location.pathname || '') + (location.search || '');
+                const donePrefix = 'wt:done:' + (location.pathname || '') + (location.search || '');
+
+                // If virtual pages are not available, we can't reset reliably
+                if (typeof x_virtualPages === 'undefined' || !x_virtualPages) {
+                    return;
+                }
+
+                // Get current data
+                let statsData = {};
+                try {
+                    statsData = JSON.parse(localStorage.getItem(prefix) || '{}');
+                } catch(e) {
+                    statsData = {};
+                }
+
+                let doneData = {};
+                try {
+                    doneData = JSON.parse(localStorage.getItem(donePrefix) || '{}');
+                } catch(e) {
+                    doneData = {};
+                }
+
+                // Remove all exercises in this level range
+                for (var i = startIndex; i <= endIndex && i < x_virtualPages.length; i++) {
+                    if (!x_virtualPages[i] || x_virtualPages[i].type === 'levelCompletion') continue;
+                    
+                    // Calculate actual page number (baseIndex + virtual index)
+                    const actualPageNum = baseIndex + i + 1; // +1 because pages are 1-based
+                    const exerciseKey = x_virtualPages[i].type + '@p' + actualPageNum;
+                    
+                    // Delete from both stats and done
+                    delete statsData[exerciseKey];
+                    delete doneData[exerciseKey];
+                }
+
+                // Save back to localStorage
+                try {
+                    localStorage.setItem(prefix, JSON.stringify(statsData));
+                    localStorage.setItem(donePrefix, JSON.stringify(doneData));
+                    
+                    // Trigger stats update event
+                    try {
+                        window.dispatchEvent(new CustomEvent('wt:statsUpdated', { detail: { key: prefix } }));
+                    } catch(e) {}
+                } catch(e) {
+                    console.error('Error resetting level progress:', e);
+                }
+            } catch(e) {
+                console.error('Error in resetLevelProgress:', e);
+            }
+        };
+
+        function getAllWords() {
+            var words = [];
+            if (typeof x_wordListData !== 'undefined' && x_wordListData && x_wordListData.length > 0) {
+                for (var i = 0; i < x_wordListData.length; i++) {
+                    var w = x_wordListData[i];
+                    var word = (w && w.word != null) ? String(w.word).trim() : (typeof w === 'string' ? w.trim() : '');
+                    if (word) words.push(word);
+                }
+            }
+            if (words.length === 0 && typeof window.wtGetCustomWordSet === 'function') {
+                var custom = window.wtGetCustomWordSet();
+                if (custom && custom.length > 0) {
+                    for (var j = 0; j < custom.length; j++) {
+                        var c = custom[j];
+                        word = (c && c.word != null) ? String(c.word).trim() : (typeof c === 'string' ? c.trim() : '');
+                        if (word) words.push(word);
+                    }
+                }
+            }
+            return words;
+        }
+
+        function getPageNumFromStatsKey(key) {
+            if (!key || key.indexOf('@p') === -1) return null;
+            var parts = key.split('@p');
+            var num = parseInt(parts[1], 10);
+            return isNaN(num) ? null : num;
+        }
+
+        function buildStatsByWord(statsData, onlyThisLevel, levelStartIndex, levelEndIndex, baseIndex) {
+            var pageMin = onlyThisLevel ? (baseIndex + levelStartIndex + 1) : null;
+            var pageMax = onlyThisLevel ? (baseIndex + levelEndIndex + 1) : null;
+
+            var byWord = {};
+            for (var key in statsData) {
+                if (!statsData.hasOwnProperty(key)) continue;
+                if (onlyThisLevel) {
+                    var pageNum = getPageNumFromStatsKey(key);
+                    if (pageNum == null || pageNum < pageMin || pageNum > pageMax) continue;
+                }
+                var entry = statsData[key];
+                if (!entry) continue;
+                var word = (entry.word != null && entry.word !== '') ? String(entry.word).trim() : null;
+                if (!word) continue;
+                var wordKey = word.toLowerCase();
+                if (!byWord[wordKey]) {
+                    byWord[wordKey] = { word: word, right: 0, wrong: 0 };
+                }
+                if (typeof entry.rightCount === 'number') byWord[wordKey].right += entry.rightCount;
+                if (typeof entry.wrongCount === 'number') byWord[wordKey].wrong += entry.wrongCount;
+            }
+            return byWord;
+        }
+
+        function openProgressModal() {
+            var level = parseInt(x_currentPageXML.getAttribute('level') || '1', 10);
+            var levelStartIndex = parseInt(x_currentPageXML.getAttribute('levelStartIndex') || '0', 10);
+            var levelEndIndex = parseInt(x_currentPageXML.getAttribute('levelEndIndex') || '0', 10);
+            var baseIndex = 0;
+            if (typeof x_pageInfo !== 'undefined' && typeof x_virtualPages !== 'undefined' && x_virtualPages && x_virtualPages.length > 0) {
+                baseIndex = x_pageInfo.length - x_virtualPages.length;
+            }
+
+            var allWordStrings = getAllWords();
+            var wordSet = {};
+            for (var i = 0; i < allWordStrings.length; i++) {
+                var w = allWordStrings[i];
+                var k = w.toLowerCase();
+                if (!wordSet[k]) wordSet[k] = w;
+            }
+
+            const currentLevelKey = 'wt:currentLevelStats:' + (location.pathname || '') + (location.search || '');
+            const globalStatsKey = 'wt:globalWordStats';
+            let currentLevelData = {};
+            let globalStatsData = {};
+            try {
+                currentLevelData = JSON.parse(localStorage.getItem(currentLevelKey) || '{}');
+            } catch(e) {}
+            try {
+                globalStatsData = JSON.parse(localStorage.getItem(globalStatsKey) || '{}');
+            } catch(e) {}
+
+            // Tab "dit level": alleen wt:currentLevelStats (wordt geleegd bij start nieuw level)
+            // Tab "algemeen": wt:globalWordStats (zelfde bron als woordenlijstExtended/custom)
+            var byWordAll = {};
+            for (var gk in globalStatsData) {
+                if (globalStatsData.hasOwnProperty(gk)) {
+                    var g = globalStatsData[gk];
+                    byWordAll[gk] = {
+                        word: wordSet[gk] || gk,
+                        right: (g && typeof g.right === 'number') ? g.right : 0,
+                        wrong: (g && typeof g.wrong === 'number') ? g.wrong : 0
+                    };
+                }
+            }
+            for (k in wordSet) {
+                if (wordSet.hasOwnProperty(k) && !byWordAll[k]) {
+                    byWordAll[k] = { word: wordSet[k], right: 0, wrong: 0 };
+                } else if (byWordAll[k] && wordSet[k]) {
+                    byWordAll[k].word = wordSet[k];
+                }
+            }
+
+            var wordsForTable = [];
+            for (k in wordSet) {
+                if (wordSet.hasOwnProperty(k)) {
+                    wordsForTable.push({
+                        word: wordSet[k],
+                        levelRight: (currentLevelData[k] && currentLevelData[k].right) || 0,
+                        levelWrong: (currentLevelData[k] && currentLevelData[k].wrong) || 0,
+                        allRight: (byWordAll[k] && byWordAll[k].right) || 0,
+                        allWrong: (byWordAll[k] && byWordAll[k].wrong) || 0
+                    });
+                }
+            }
+            if (wordsForTable.length === 0) {
+                for (k in byWordAll) {
+                    if (byWordAll.hasOwnProperty(k)) {
+                        wordsForTable.push({
+                            word: byWordAll[k].word,
+                            levelRight: (currentLevelData[k] && currentLevelData[k].right) || 0,
+                            levelWrong: (currentLevelData[k] && currentLevelData[k].wrong) || 0,
+                            allRight: byWordAll[k].right || 0,
+                            allWrong: byWordAll[k].wrong || 0
+                        });
+                    }
+                }
+            }
+            for (k in currentLevelData) {
+                if (currentLevelData.hasOwnProperty(k) && !wordSet[k]) {
+                    var ent = currentLevelData[k];
+                    wordsForTable.push({
+                        word: (ent && ent.word) || k,
+                        levelRight: (ent && ent.right) || 0,
+                        levelWrong: (ent && ent.wrong) || 0,
+                        allRight: (byWordAll[k] && byWordAll[k].right) || 0,
+                        allWrong: (byWordAll[k] && byWordAll[k].wrong) || 0
+                    });
+                }
+            }
+            wordsForTable.sort(function(a, b) { return a.word.localeCompare(b.word, 'nl'); });
+
+            var modal = document.getElementById('progressModal');
+            var content = document.getElementById('progressModalContent');
+            if (!modal || !content) return;
+
+            var html = '<h3 class="progress-modal-title">' +
+                '<span id="progressModalTitleBase">Voortgang per woord</span><span id="progressModalTitleSuffix"> (dit level)</span></h3>' +
+                '<div class="progress-modal-title-translation" id="progressModalTitleTranslation"></div>';
+
+            function renderTable(getRight, getWrong) {
+                var h = '<div class="progress-table-wrap"><table class="progress-table">' +
+                    '<thead><tr><th>woord</th><th>goed</th><th>fout</th><th>totaal</th><th>%</th></tr></thead><tbody>';
+                for (var i = 0; i < wordsForTable.length; i++) {
+                    var w = wordsForTable[i];
+                    var right = getRight(w);
+                    var wrong = getWrong(w);
+                    var total = right + wrong;
+                    var pct = total > 0 ? Math.round((right / total) * 100) : '-';
+                    h += '<tr><td class="progress-word">' + escapeHtml(w.word) + '</td>' +
+                        '<td class="progress-good">' + right + '</td>' +
+                        '<td class="progress-wrong">' + wrong + '</td>' +
+                        '<td>' + total + '</td>' +
+                        '<td class="progress-pct">' + pct + (total > 0 ? '%' : '') + '</td></tr>';
+                }
+                h += '</tbody></table></div>';
+                return h;
+            }
+
+            if (wordsForTable.length === 0) {
+                html += '<p class="progress-row">Geen woordenlijst gevonden. Maak oefeningen om je voortgang te zien.</p>';
+            } else {
+                html += '<div class="progress-tabs">' +
+                    '<button type="button" class="progress-tab active" data-tab="level" aria-selected="true">' +
+                    '<span class="progress-tab-label">resultaten dit level</span><span class="progress-tab-translation"></span></button>' +
+                    '<button type="button" class="progress-tab" data-tab="all" aria-selected="false">' +
+                    '<span class="progress-tab-label">resultaten algemeen</span><span class="progress-tab-translation"></span></button>' +
+                    '</div>' +
+                    '<div class="progress-panel active" id="progressPanelLevel">' + renderTable(function(w) { return w.levelRight; }, function(w) { return w.levelWrong; }) + '</div>' +
+                    '<div class="progress-panel" id="progressPanelAll">' + renderTable(function(w) { return w.allRight; }, function(w) { return w.allWrong; }) + '</div>';
+            }
+            content.innerHTML = html;
+            modal.style.display = 'flex';
+
+            var titleSuffix = content.querySelector('#progressModalTitleSuffix');
+            var titleTranslation = content.querySelector('#progressModalTitleTranslation');
+            var tabs = content.querySelectorAll('.progress-tab');
+            var panels = content.querySelectorAll('.progress-panel');
+            var selectedLang = getSelectedLanguage();
+            var titleTransLevel = '';
+            var titleTransAll = '';
+
+            function setTitleForTab(idx) {
+                if (titleSuffix) {
+                    titleSuffix.textContent = idx === 0 ? ' (dit level)' : ' (algemeen)';
+                }
+                if (titleTranslation) {
+                    titleTranslation.textContent = idx === 0 ? titleTransLevel : titleTransAll;
+                }
+            }
+
+            if (selectedLang) {
+                Promise.all([
+                    translateText('Voortgang per woord (dit level)', selectedLang),
+                    translateText('Voortgang per woord (algemeen)', selectedLang),
+                    translateText('resultaten dit level', selectedLang),
+                    translateText('resultaten algemeen', selectedLang)
+                ]).then(function(results) {
+                    titleTransLevel = results[0] || '';
+                    titleTransAll = results[1] || '';
+                    if (titleTranslation) titleTranslation.textContent = titleTransLevel;
+                    var transSpans = content.querySelectorAll('.progress-tab-translation');
+                    if (transSpans[0] && results[2]) transSpans[0].textContent = results[2];
+                    if (transSpans[1] && results[3]) transSpans[1].textContent = results[3];
+                });
+            }
+
+            for (var t = 0; t < tabs.length; t++) {
+                tabs[t].addEventListener('click', (function(idx) {
+                    return function() {
+                        for (var i = 0; i < tabs.length; i++) {
+                            tabs[i].classList.toggle('active', i === idx);
+                            tabs[i].setAttribute('aria-selected', i === idx ? 'true' : 'false');
+                        }
+                        for (var j = 0; j < panels.length; j++) {
+                            panels[j].classList.toggle('active', j === idx);
+                        }
+                        setTitleForTab(idx);
+                    };
+                })(t));
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getSelectedLanguage() {
+            try {
+                var lang = localStorage.getItem('woordenlijst_selected_language') || '';
+                return (lang && lang.trim() && lang.toLowerCase() !== 'nl') ? lang.trim() : '';
+            } catch (e) { return ''; }
+        }
+
+        function translateText(text, targetLang) {
+            if (!text || !targetLang) return Promise.resolve('');
+            var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=nl|' + encodeURIComponent(targetLang) + '&de=f.vangils@curio.nl';
+            return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+                var t = data && data.responseData && data.responseData.translatedText ? data.responseData.translatedText.trim() : '';
+                if (t && /MYMEMORY WARNING|USED ALL AVAILABLE FREE|NEXT AVAILABLE IN/i.test(t)) t = 'Vertaling niet beschikbaar';
+                if (t && t.toLowerCase() !== text.toLowerCase()) return t.replace(/\.{2,}$/g, '.').replace(/:{2,}$/g, ':');
+                return '';
+            }).catch(function() { return ''; });
+        }
+
+        function closeProgressModal() {
+            var modal = document.getElementById('progressModal');
+            if (modal) modal.style.display = 'none';
+        }
+        this.closeProgressModal = closeProgressModal;
+    };
+
+    levelCompletion.init();
+
+    window.wtCloseProgressModal = function() {
+        if (typeof levelCompletion !== 'undefined' && levelCompletion.closeProgressModal) {
+            levelCompletion.closeProgressModal();
+        } else {
+            var m = document.getElementById('progressModal');
+            if (m) m.style.display = 'none';
+        }
+    };
+</script>
+
+<!-- Voortgang modal -->
+<div id="progressModal" class="progress-modal" style="display: none;" aria-hidden="true">
+    <div class="progress-modal-overlay" onclick="window.wtCloseProgressModal();"></div>
+    <div class="progress-modal-box">
+        <button type="button" class="progress-modal-close" onclick="window.wtCloseProgressModal();" aria-label="Sluiten">&times;</button>
+        <div id="progressModalContent"></div>
+    </div>
+</div>
+
+<div id="completionWrapper" class="completion-wrapper">
+    <div id="levelTitle" class="level-title"></div>
+    <div id="celebrationMessage" class="celebration-message"></div>
+    <div id="buttons" class="buttons-container"></div>
+</div>
+
+<style>
+    .completion-wrapper {
+        font-family: "Segoe UI", sans-serif;
+        padding: 2.25rem 1.75rem;
+        max-width: 700px;
+        margin: 0 auto;
+        text-align: center;
+        min-height: 45vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .level-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #7E1AE3;
+        margin-bottom: 1rem;
+        line-height: 1.3;
+    }
+
+    .celebration-icon {
+        font-size: 4rem;
+        display: block;
+        margin-bottom: 0.5rem;
+        animation: bounce 1s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-15px);
+        }
+    }
+
+    .celebration-message {
+        margin-bottom: 2rem;
+    }
+
+    .celebration-text {
+        font-size: 1.4rem;
+        line-height: 1.6;
+        color: #555;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .buttons-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        max-width: 560px;
+    }
+
+    .buttons-row {
+        display: flex;
+        flex-direction: row;
+        gap: 1rem;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .completion-btn {
+        padding: 0.85rem 2rem;
+        font-size: 1.05rem;
+        font-weight: bold;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 200px;
+        text-transform: lowercase;
+        color: white;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+    }
+
+    .completion-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+    }
+
+    .completion-btn:active {
+        transform: translateY(0);
+    }
+
+    .repeat-btn {
+        background-color: #ffc107;
+    }
+
+    .repeat-btn:hover {
+        background-color: #e0a800;
+    }
+
+    .next-btn {
+        background-color: #7E1AE3;
+    }
+
+    .next-btn:hover {
+        background-color: #6a16c7;
+    }
+
+    .finish-btn {
+        background-color: #28a745;
+    }
+
+    .finish-btn:hover {
+        background-color: #218838;
+    }
+
+    .progress-btn {
+        background-color: #6c757d;
+    }
+
+    .progress-btn:hover {
+        background-color: #5a6268;
+    }
+
+    /* Voortgang modal – boven x_topNavBar (z-index 100000) en footer */
+    .progress-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        box-sizing: border-box;
+    }
+
+    .progress-modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .progress-modal-box {
+        position: relative;
+        background: #fff;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 480px;
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .progress-modal-close {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #7E1AE3;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+        transition: background-color 0.2s ease;
+    }
+
+    .progress-modal-close:hover {
+        background-color: #6a16c7;
+        color: #fff;
+    }
+
+    .progress-modal-title {
+        margin: 0 0 0.25rem 0;
+        font-size: 1.35rem;
+        color: #7E1AE3;
+    }
+
+    .progress-modal-title-translation {
+        font-size: 0.8rem;
+        color: #999;
+        font-style: italic;
+        margin-bottom: 1rem;
+    }
+
+    .progress-tabs {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    #x_pageDiv button.progress-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.15rem;
+        padding: 0.65rem 1.25rem;
+        font-size: 0.95rem;
+        font-weight: bold;
+        text-transform: lowercase;
+        color: #555;
+        background: transparent;
+        border: 2px solid #bbb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: none;
+    }
+
+    #x_pageDiv button.progress-tab .progress-tab-label {
+        display: block;
+    }
+
+    #x_pageDiv button.progress-tab .progress-tab-translation {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: normal;
+        font-style: italic;
+        color: #666;
+    }
+
+    #x_pageDiv button.progress-tab:hover {
+        background: transparent;
+        border-color: #999;
+        color: #333;
+    }
+
+    #x_pageDiv button.progress-tab.active {
+        background-color: #7E1AE3;
+        border-color: #7E1AE3;
+        color: #fff;
+        box-shadow: none;
+    }
+
+    #x_pageDiv button.progress-tab.active .progress-tab-translation {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    #x_pageDiv button.progress-tab.active:hover {
+        background-color: #6a16c7;
+        border-color: #6a16c7;
+        color: #fff;
+    }
+
+    .progress-panel {
+        display: none;
+    }
+
+    .progress-panel.active {
+        display: block;
+    }
+
+    #progressModalContent .progress-row {
+        margin: 0.6rem 0;
+        font-size: 1.05rem;
+        color: #333;
+    }
+
+    .progress-good {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .progress-wrong {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .progress-total {
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #eee;
+    }
+
+    .progress-pct {
+        font-weight: 600;
+        color: #7E1AE3;
+    }
+
+    .progress-table-wrap {
+        overflow-x: auto;
+        margin-top: 0.5rem;
+    }
+
+    .progress-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+        text-align: left;
+    }
+
+    .progress-table th,
+    .progress-table td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .progress-table th {
+        font-weight: 700;
+        color: #555;
+        text-transform: lowercase;
+    }
+
+    .progress-table td.progress-word {
+        font-weight: normal;
+        color: #333;
+    }
+
+    .progress-table td.progress-good {
+        color: #28a745;
+        font-weight: normal;
+    }
+
+    .progress-table td.progress-wrong {
+        color: #dc3545;
+        font-weight: normal;
+    }
+
+    .progress-table td.progress-pct {
+        color: #7E1AE3;
+        font-weight: normal;
+    }
+
+    @media (max-width: 768px) {
+        .completion-wrapper {
+            padding: 1.75rem 1rem;
+            min-height: 40vh;
+        }
+
+        .level-title {
+            font-size: 2rem;
+        }
+
+        .celebration-icon {
+            font-size: 3rem;
+        }
+
+        .celebration-text {
+            font-size: 1.2rem;
+        }
+
+        .buttons-row {
+            flex-direction: row;
+        }
+
+        .completion-btn {
+            min-width: 140px;
+        }
+    }
+    
+    /* Hide next buttons on levelCompletion pages */
+    #x_nextBtn,
+    #x_nextBtn_top,
+    .x_nextBtn {
+        display: none !important;
+    }
+</style>

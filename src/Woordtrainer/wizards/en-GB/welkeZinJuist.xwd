@@ -1,0 +1,35 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <welkeZinJuist><![CDATA[
+        <welkeZinJuist name="Welke zin is juist?"
+          text="Kies de juiste zin uit de onderstaande opties."
+          retryBtnTxt="probeer opnieuw"
+          woordItemCorrect="De kat zit op de mat."
+          woordItemOption1="De kat zitten op de mat."
+          woordItemOption2="De kat zitten op de maten."
+          woordItemOption3="De kat zitten op de mat."
+        />
+      ]]></welkeZinJuist>
+    </newNodes>
+  </pageWizard>
+
+  <welkeZinJuist
+    menu="Woordtrainer"
+    menuItem="Welke zin is juist?"
+    hint="Toon een quiz waarbij de juiste zin gekozen moet worden uit vier opties."
+    icon="icQuiz"
+    thumb="thumbs/hotspotImage.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <text label="Introductie of instructie" type="TextArea" height="100"/>
+    <retryBtnTxt label="Opnieuw proberen-knop" type="TextInput" defaultValue="probeer opnieuw"/>
+
+    <woordItemCorrect label="Correcte zin" type="TextArea" height="60"/>
+    <woordItemOption1 label="Foutieve optie 1" type="TextArea" height="60"/>
+    <woordItemOption2 label="Foutieve optie 2" type="TextArea" height="60"/>
+    <woordItemOption3 label="Foutieve optie 3" type="TextArea" height="60"/>
+
+  </welkeZinJuist>
+</wizard>

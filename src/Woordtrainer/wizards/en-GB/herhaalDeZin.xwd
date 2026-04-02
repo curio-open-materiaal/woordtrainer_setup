@@ -1,0 +1,37 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <herhaalDeZin><![CDATA[
+        <herhaalDeZin name="Herhaal de Zin"
+          zin1="De hond blaft in de tuin."
+        />
+      ]]></herhaalDeZin>
+    </newNodes>
+  </pageWizard>
+
+  <herhaalDeZin
+    menu="Woordtrainer"
+    menuItem="Herhaal de Zin"
+    hint="Laat gebruikers woorden of zinnen hardop herhalen met spraakherkenning."
+    icon="icMic"
+    thumb="thumbs/audio.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+
+    <showMeaning label="Toon betekenis (woord verbergen)" type="CheckBox" defaultValue="false" optional="true" tooltip="Wanneer ingeschakeld, wordt de betekenis getoond en moet de gebruiker het woord uitspreken. De uitspraak knop wordt verborgen. De betekenis wordt automatisch uit de Woordenlijst Extended gehaald als deze niet handmatig is ingevuld."/>
+
+    <zin1 label="woord 1" type="TextInput"/>
+    <betekenis1 label="betekenis 1 (optioneel, override)" type="TextInput" optional="true" condition="showMeaning=='true'" tooltip="Optioneel: vul handmatig in om de betekenis uit de Woordenlijst Extended te overschrijven. Laat leeg om automatisch uit de woordenlijst te halen."/>
+    
+    <zin2 label="woord 2" type="TextInput" optional="true"/>
+    <betekenis2 label="betekenis 2 (optioneel, override)" type="TextInput" optional="true" condition="showMeaning=='true'" tooltip="Optioneel: vul handmatig in om de betekenis uit de Woordenlijst Extended te overschrijven. Laat leeg om automatisch uit de woordenlijst te halen."/>
+    
+    <zin3 label="woord 3" type="TextInput" optional="true"/>
+    <betekenis3 label="betekenis 3 (optioneel, override)" type="TextInput" optional="true" condition="showMeaning=='true'" tooltip="Optioneel: vul handmatig in om de betekenis uit de Woordenlijst Extended te overschrijven. Laat leeg om automatisch uit de woordenlijst te halen."/>
+    
+    <zin4 label="woord 4" type="TextInput" optional="true"/>
+    <betekenis4 label="betekenis 4 (optioneel, override)" type="TextInput" optional="true" condition="showMeaning=='true'" tooltip="Optioneel: vul handmatig in om de betekenis uit de Woordenlijst Extended te overschrijven. Laat leeg om automatisch uit de woordenlijst te halen."/>
+
+  </herhaalDeZin>
+</wizard>

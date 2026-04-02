@@ -1,0 +1,23 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="true">
+    <newNodes>
+      <woordenContext><![CDATA[
+<woordenContext name="Zin met Woorden in Context"
+  zin="Ik eet graag een &lt;strong&gt;appel&lt;/strong&gt; en een &lt;strong&gt;banaan&lt;/strong&gt;." />
+      ]]></woordenContext>
+    </newNodes>
+  </pageWizard>
+
+  <woordenContext
+    menu="Woordtrainer"
+    menuItem="Woorden in Context"
+    hint="Voeg een zin in met dikgedrukte woorden. Die woorden kunnen worden uitgesproken bij hover."
+    icon="icRecordVoiceOver"
+    thumb="thumbs/textInput.jpg"
+    remove="true">
+
+    <name label="Paginatitel" type="TextInput"/>
+    <zin label="Zin met HTML (gebruik &lt;strong&gt; voor woorden die moeten worden uitgesproken)" type="TextArea" height="120"/>
+
+  </woordenContext>
+</wizard>

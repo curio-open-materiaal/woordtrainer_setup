@@ -1,0 +1,542 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+  var woordtrainerFillBlanks = new function () {
+    
+    function playSuccess() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {}
+    }
+
+    function playError() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+      } catch (e) {}
+    }
+
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('fbWrapper');
+      if (!wrapper) return;
+
+      const intro = x_currentPageXML.getAttribute('text') || '';
+      let sentence = decodeEntities(stripTags(x_currentPageXML.getAttribute('sentence') || ''));
+      // If no sentence provided, try contextzin
+      if (!sentence || sentence.trim() === '') {
+        sentence = decodeEntities(stripTags(x_currentPageXML.getAttribute('contextzin') || ''));
+      }
+      let correctWord = decodeEntities(stripTags(x_currentPageXML.getAttribute('correctWord') || '')).trim();
+      const distractorsRaw = decodeEntities(stripTags(x_currentPageXML.getAttribute('distractors') || ''));
+      const distractors = distractorsRaw.split(',').map(s => s.trim()).filter(Boolean);
+      const typingMode = (x_currentPageXML.getAttribute('typingMode') || 'false') === 'true';
+      
+      // If no correctWord but we have a sentence, try to extract it from sentence
+      // or get from word list
+      if (!correctWord || correctWord === '') {
+        // Try to get word from woordenLijstExtended if available
+        if (typeof x_wordListData !== 'undefined' && x_wordListData && x_wordListData.length > 0) {
+          // Try to find word that matches sentence context
+          const matchingWord = x_wordListData.find(function(w) {
+            return sentence.indexOf(w.word) !== -1;
+          });
+          if (matchingWord) {
+            correctWord = matchingWord.word;
+          }
+        }
+      }
+
+      const introTextEl = wrapper.querySelector('.introText');
+      introTextEl.innerHTML = x_addLineBreaks(intro);
+      
+      // Add translation under intro text
+      if (typeof x_addTranslationUnder === 'function') {
+        x_addTranslationUnder(introTextEl, intro);
+      }
+
+      const host = wrapper.querySelector('.fbContainer');
+      host.innerHTML = '';
+
+      // Replace correctWord with a placeholder in the sentence
+      const blankPlaceholder = '______';
+      const sentenceWithBlank = sentence.replace(new RegExp('\\b' + correctWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), blankPlaceholder);
+
+      // Sentence display
+      const sentenceDiv = document.createElement('div');
+      sentenceDiv.className = 'fbSentence';
+      sentenceDiv.dataset.originalSentence = sentence; // Store original sentence
+      sentenceDiv.dataset.blankPlaceholder = blankPlaceholder; // Store placeholder
+      sentenceDiv.dataset.correctWord = correctWord; // Store correct word
+      
+      // Count words: capitalize first letter only for sentences (more than 3 words), lowercase for 3 words or less
+      const wordCount = sentence.trim().split(/\s+/).filter(w => w.length > 0).length;
+      if (wordCount > 3) {
+        // Capitalize only the first letter of the sentence, rest lowercase
+        const firstChar = sentenceWithBlank.charAt(0).toUpperCase();
+        const restOfSentence = sentenceWithBlank.slice(1).toLowerCase();
+        sentenceDiv.textContent = firstChar + restOfSentence;
+        sentenceDiv.style.textTransform = 'none';
+      } else {
+        sentenceDiv.textContent = sentenceWithBlank;
+        sentenceDiv.style.textTransform = 'lowercase';
+      }
+      
+      // Function to fill in the blank with the correct word in green
+      function fillInBlank() {
+        const placeholder = sentenceDiv.dataset.blankPlaceholder;
+        const correctWord = sentenceDiv.dataset.correctWord;
+        // Get current sentence text and replace placeholder with green word
+        let currentText = sentenceDiv.textContent;
+        // Find the placeholder and determine the case of the word in the original sentence
+        const originalSentence = sentenceDiv.dataset.originalSentence;
+        const wordRegex = new RegExp('\\b' + correctWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+        const match = originalSentence.match(wordRegex);
+        let wordToInsert = correctWord;
+        if (match) {
+          // Use the exact case from the original sentence
+          wordToInsert = match[0];
+        }
+        // Replace placeholder with green word
+        const greenWord = '<span style="color: #28a745; font-weight: bold;">' + wordToInsert + '</span>';
+        sentenceDiv.innerHTML = currentText.replace(placeholder, greenWord);
+      }
+
+      const feedback = document.createElement('div');
+      feedback.className = 'fbFeedback';
+
+      if (typingMode) {
+        // Text input mode with obfuscated word hints
+        function obfuscate(word) {
+          if (word.length <= 3) return word;
+          
+          // Show 3 random letters, rest as underscores, but keep spaces visible
+          const numToShow = Math.min(3, word.length);
+          const indices = [];
+          const usedIndices = new Set();
+          
+          // Pick 3 random positions (excluding spaces)
+          const nonSpaceIndices = [];
+          for (let i = 0; i < word.length; i++) {
+            if (word[i] !== ' ') {
+              nonSpaceIndices.push(i);
+            }
+          }
+          
+          while (usedIndices.size < numToShow && usedIndices.size < nonSpaceIndices.length) {
+            const randomIndex = nonSpaceIndices[Math.floor(Math.random() * nonSpaceIndices.length)];
+            usedIndices.add(randomIndex);
+          }
+          
+          // Build obfuscated word
+          let result = '';
+          for (let i = 0; i < word.length; i++) {
+            if (word[i] === ' ') {
+              result += ' '; // Keep spaces visible
+            } else {
+              result += usedIndices.has(i) ? word[i] : '_';
+            }
+          }
+          return result;
+        }
+        
+        // Show obfuscated hints for all words
+        const allWords = [correctWord, ...distractors];
+        const hintsDiv = document.createElement('div');
+        hintsDiv.className = 'fbHints';
+        hintsDiv.innerHTML = '<div class="fbHintsLabel">Hints:</div>';
+        const hintsContainer = document.createElement('div');
+        hintsContainer.className = 'fbHintsContainer';
+        allWords.forEach(word => {
+          const hint = document.createElement('span');
+          hint.className = 'fbHint';
+          hint.textContent = obfuscate(word);
+          hintsContainer.appendChild(hint);
+        });
+        hintsDiv.appendChild(hintsContainer);
+        
+        const inputDiv = document.createElement('div');
+        inputDiv.className = 'fbInputHolder';
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'fbTextInput';
+        input.placeholder = 'typ het woord';
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        
+        const checkBtn = document.createElement('button');
+        checkBtn.className = 'fbCheckBtn';
+        checkBtn.textContent = 'controleer antwoord';
+        
+        function handleCheck() {
+          const isCorrect = normalize(input.value) === normalize(correctWord);
+          if (isCorrect) {
+            input.classList.add('correct');
+            // Fill in the blank with the correct word in green
+            fillInBlank();
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              feedback.textContent = 'goed gedaan!';
+              feedback.style.fontWeight = 'normal';
+              playSuccess();
+              try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); setTimeout(() => confetti.reset(), 1000); } catch(e) {}
+            }
+            hintsDiv.style.display = 'none';
+            checkBtn.style.display = 'none';
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerFillBlanks', correctWord, true);
+          } else {
+            input.classList.add('incorrect');
+            playError();
+            setTimeout(() => input.classList.remove('incorrect'), 600);
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerFillBlanks', correctWord, false, input.value);
+          }
+        }
+        
+        checkBtn.addEventListener('click', handleCheck);
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') handleCheck();
+        });
+        
+        inputDiv.appendChild(input);
+        inputDiv.appendChild(checkBtn);
+        
+        // Create layout similar to quiz
+        const layout = document.createElement('div');
+        layout.className = 'fbLayout';
+
+        const left = document.createElement('div');
+        left.className = 'fbQuestion';
+        left.appendChild(sentenceDiv);
+        left.appendChild(hintsDiv);
+
+        const right = document.createElement('div');
+        right.className = 'fbOptionsWrapper';
+        right.appendChild(inputDiv);
+
+        layout.appendChild(left);
+        layout.appendChild(right);
+        host.appendChild(layout);
+        host.appendChild(feedback);
+      } else {
+        // Multiple choice mode
+        const allOptions = [correctWord, ...distractors].sort(() => Math.random() - 0.5);
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'fbOptions';
+
+        let selectedWord = '';
+
+      allOptions.forEach(word => {
+        const btn = document.createElement('button');
+        btn.className = 'fbOptionBtn';
+        btn.textContent = word;
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('disabled')) return;
+          
+          selectedWord = word;
+          // Disable all options
+          optionsDiv.querySelectorAll('.fbOptionBtn').forEach(b => b.classList.add('disabled'));
+          
+          const isCorrect = normalize(word) === normalize(correctWord);
+          if (isCorrect) {
+            btn.classList.add('correct');
+            // Fill in the blank with the correct word in green
+            fillInBlank();
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              feedback.textContent = 'goed gedaan!';
+              feedback.style.fontWeight = 'normal';
+              playSuccess();
+              try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); setTimeout(() => confetti.reset(), 1000); } catch(e) {}
+            }
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerFillBlanks', correctWord, true);
+          } else {
+            btn.classList.add('wrong');
+            playError();
+            setTimeout(() => {
+              btn.classList.remove('wrong');
+              optionsDiv.querySelectorAll('.fbOptionBtn').forEach(b => b.classList.remove('disabled'));
+            }, 700);
+            if (window.wtRecordAttempt) window.wtRecordAttempt('woordtrainerFillBlanks', correctWord, false, word);
+          }
+        });
+        optionsDiv.appendChild(btn);
+      });
+
+        // Create layout similar to quiz
+        const layout = document.createElement('div');
+        layout.className = 'fbLayout';
+
+        const left = document.createElement('div');
+        left.className = 'fbQuestion';
+        left.appendChild(sentenceDiv);
+
+        const right = document.createElement('div');
+        right.className = 'fbOptionsWrapper';
+        right.appendChild(optionsDiv);
+
+        layout.appendChild(left);
+        layout.appendChild(right);
+        host.appendChild(layout);
+        host.appendChild(feedback);
+      }
+
+      x_pageLoaded();
+    };
+
+    function stripTags(s) {
+      try { return (s || '').toString().replace(/<[^>]*>/g, ''); } catch(e) { return (s || ''); }
+    }
+    function decodeEntities(s) {
+      try { const d = document.createElement('div'); d.innerHTML = (s || ''); return d.textContent || d.innerText || ''; } catch(e) { return (s || ''); }
+    }
+    function normalize(s) {
+      return decodeEntities(stripTags((s || '').toString())).trim().toLowerCase();
+    }
+  };
+
+  woordtrainerFillBlanks.init();
+</script>
+
+<div id="fbWrapper" class="general-wrapper">
+  <div class="introText"></div>
+  <div class="fbContainer"></div>
+</div>
+
+<style>
+  #fbWrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+  }
+  .intro-translation {
+    text-align: center !important;
+  }
+  .fbContainer { 
+    background: transparent;
+    margin-top: 1.5rem;
+  }
+  
+  .fbLayout {
+    display: flex;
+    gap: 2rem;
+    align-items: stretch;
+  }
+
+  .fbQuestion {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    width: 50%;
+    min-height: 330px;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .fbSentence {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 1rem 1.25rem;
+    line-height: 1.8;
+    font-size: 1.15rem;
+    color: #222;
+    text-align: center;
+    margin-bottom: 0;
+    width: 100%;
+    /* text-transform will be set dynamically based on word count */
+  }
+  
+  .fbOptionsWrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .fbOptions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-content: center;
+    height: 100%;
+  }
+  
+  .fbOptionBtn {
+    padding: 4.25rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    color: #444;
+    background-color: transparent !important;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: none;
+    text-transform: lowercase;
+  }
+  
+  .fbOptionBtn:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+  
+  .fbOptionBtn.correct {
+    background-color: #28a745 !important;
+    border-color: #1e7e34 !important;
+    color: white !important;
+    font-weight: bold;
+    transform: scale(1.05);
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .fbOptionBtn.wrong {
+    background-color: #dc3545 !important;
+    border-color: #bd2130 !important;
+    color: white !important;
+    font-weight: bold;
+    transform: scale(1.05);
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .fbOptionBtn.disabled {
+    pointer-events: none;
+  }
+  .fbFeedback {
+    margin-top: 2rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #28a745;
+    text-align: center;
+  }
+  
+  /* Typing mode styles */
+  .fbInputHolder {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  .fbCheckBtn {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    background-color: #7E1AE3;
+    color: white;
+    width: 100%;
+    max-width: 400px;
+  }
+  .fbCheckBtn:hover {
+    background-color: #6a16c7;
+  }
+  
+  /* Hints styles for typing mode */
+  .fbHints {
+    margin-top: 1rem;
+    text-align: center;
+    width: 100%;
+  }
+  .fbHintsLabel {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+  }
+  .fbHintsContainer {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .fbHint {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 1rem;
+    color: #555;
+    font-family: monospace;
+    letter-spacing: 2px;
+  }
+
+  @media (max-width: 768px) {
+    .fbLayout {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .fbOptionBtn {
+      padding: 1.5rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .fbQuestion,
+    .fbOptionsWrapper {
+      width: 100%;
+    }
+
+    .fbQuestion {
+      margin-bottom: 1.5rem;
+    }
+
+    .fbOptions {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

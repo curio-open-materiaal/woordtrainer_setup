@@ -1,0 +1,15 @@
+<wizard menus="Woordtrainer">
+  <pageWizard remove="true" duplicate="false">
+    <newNodes>
+      <woordMemory><![CDATA[<woordMemory name="Woord Memory" />]]></woordMemory>
+    </newNodes>
+  </pageWizard>
+
+  <!-- WOORDMEMORY============================== -->
+  <woordMemory menu="Woordtrainer" menuItem="Woord Memory" hint="Koppel woorden aan hun betekenissen door kaarten om te draaien." icon="icLayers" thumb="thumbs/synonym.jpg" remove="true">
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <text label="Instructies" type="TextArea" height="100" placeholder="Koppel elk woord aan zijn betekenis door de kaarten om te draaien." optional="true"/>
+    <numberOfPairs label="Aantal woordenparen" type="NumberInput" defaultValue="4" optional="true" tooltip="Kies hoeveel woordenparen er in de memory game zitten (standaard: 4). Het aantal wordt automatisch beperkt tot het aantal beschikbare woorden in de woordenlijst."/>
+  </woordMemory>
+</wizard>
+

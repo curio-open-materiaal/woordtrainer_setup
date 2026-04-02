@@ -1,0 +1,40 @@
+/* title.html */
+
+	#x_pageDiv {
+		padding: 0px !important;
+	}
+	/* Only apply absolute positioning to title pages when set by JavaScript */
+	#pageContents[data-position-set-by-page="true"] {
+		position: absolute;
+		width: 100%;
+		overflow-x: hidden !important;
+	}
+
+	.titlePageTxt {
+		width: 100% !important;
+	}
+
+	.titlePageTxt p {
+		font-size: 1em;
+	}
+	#x_headerBlock.hideTitleTxt h1, #x_headerBlock.hideTitleTxt h2, #x_headerBlock.hideTitleIcon .x_icon, #x_headerBlock.hideTitleTxt.hideTitleIcon {
+		display: none !important;
+	}
+	#titleStartBtn, #extraText {
+		margin-top: 1em;
+	}
+	#titleStartBtn {
+		margin-left: 1em;
+		margin-right: 1em;
+	}
+	#titleStartBtn {
+		padding-left: 1em;
+		padding-right: 1em;
+	}
+	#x_mainHolder:not(.x_mobile) #imgHolder {
+		float: right;
+		max-width: 48%;
+	}
+	#pageImg {
+		width: 70%;
+	}

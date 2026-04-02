@@ -1,0 +1,883 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+    var woordverdwijner = new function () {
+        let correctWord = '';
+        let showSpeaker = false;
+
+        // Sound function for correct answers
+        function playSuccessSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+            }
+        }
+
+        let exerciseStarted = false;
+        let exerciseCompleted = false;
+        let fadeTimeouts = [];
+        let flashInterval = null;
+        let checkBtnListener = null; // Track the check button listener
+
+        function startExercise() {
+            if (exerciseStarted) return;
+            exerciseStarted = true;
+
+            const wrapper = document.getElementById('bnwwrapper');
+            const imageContent = wrapper.querySelector('.imageContent');
+            const input = wrapper.querySelector('#userInput');
+            const instructionModal = document.getElementById('instructionModal');
+            
+            if (instructionModal) {
+                instructionModal.style.display = 'none';
+            }
+
+            fadeTimeouts.forEach(clearTimeout);
+            fadeTimeouts = [];
+            
+            // Clear any existing flash interval
+            if (flashInterval) {
+                clearInterval(flashInterval);
+                flashInterval = null;
+            }
+
+            const ghostContainer = wrapper.querySelector('.ghostContainer');
+            if (ghostContainer) {
+                ghostContainer.style.opacity = '1';
+                ghostContainer.style.visibility = 'visible';
+                ghostContainer.style.transform = 'translateY(0)';
+            }
+            if (imageContent) {
+                imageContent.style.opacity = '1';
+                imageContent.style.visibility = 'visible';
+            }
+
+            if (ghostContainer) {
+                const timeout2 = setTimeout(() => {
+                    ghostContainer.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                    ghostContainer.style.opacity = '0';
+                    ghostContainer.style.transform = 'translateY(-20px)';
+                    setTimeout(() => {
+                        ghostContainer.style.visibility = 'hidden';
+                        
+                        // Start flashing every 5 seconds after initial fade (only if exercise not completed)
+                        if (!exerciseCompleted) {
+                            flashInterval = setInterval(() => {
+                                // If exercise is completed meanwhile, stop scheduling flashes
+                                if (exerciseCompleted) {
+                                    clearInterval(flashInterval);
+                                    flashInterval = null;
+                                    return;
+                                }
+                                
+                                // Flash for a split second (300ms) with smoother animation
+                                ghostContainer.style.transition = 'opacity 0.2s ease-in-out, transform 0.2s ease-in-out';
+                                ghostContainer.style.transform = 'translateY(0)';
+                                ghostContainer.style.visibility = 'visible';
+                                // Force reflow to ensure transition works
+                                void ghostContainer.offsetWidth;
+                                ghostContainer.style.opacity = '1';
+                                
+                                setTimeout(() => {
+                                    ghostContainer.style.transition = 'opacity 0.2s ease-in-out, transform 0.2s ease-in-out';
+                                    ghostContainer.style.opacity = '0';
+                                    ghostContainer.style.transform = 'translateY(-20px)';
+                                    setTimeout(() => {
+                                        ghostContainer.style.visibility = 'hidden';
+                                    }, 200);
+                                }, 300); // Flash for 300ms
+                            }, 5000); // Every 5 seconds
+                        }
+                    }, 500);
+                }, 5000);
+                fadeTimeouts.push(timeout2);
+            }
+            
+            // Do not autofocus the input field; user can click it manually
+        }
+
+        this.init = function () {
+            document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+            const wrapper = document.getElementById('bnwwrapper');
+            const intro = 'Welk woord zit er in het spook?';
+            const originalWord = (x_currentPageXML.getAttribute('correctWord') || '').trim();
+            const wordCount = originalWord.trim().split(/\s+/).filter(w => w.length > 0).length;
+            const shouldBeLowercase = wordCount <= 2;
+            correctWord = shouldBeLowercase ? originalWord.toLowerCase() : originalWord;
+            showSpeaker = (x_currentPageXML.getAttribute('toonSpeaker') || 'false') === 'true';
+            
+            const matchContainer = wrapper.querySelector('.matchContainer');
+            if (matchContainer) {
+                const imageContent = matchContainer.querySelector('.imageContent');
+                if (imageContent) {
+                    const paragraphs = imageContent.querySelectorAll('p, p span');
+                    paragraphs.forEach(el => {
+                        if (shouldBeLowercase) {
+                            el.style.textTransform = 'lowercase';
+                        } else {
+                            el.style.textTransform = 'none';
+                        }
+                    });
+                }
+                
+                const wnaItemBlock = matchContainer.querySelector('.wnaItemBlock');
+                if (wnaItemBlock) {
+                    const allTextElements = wnaItemBlock.querySelectorAll('p, span, div:not(.imageWrapper):not(.soundIcon)');
+                    allTextElements.forEach(el => {
+                        if (!el.closest('.imageContent') && el.textContent.trim()) {
+                            if (shouldBeLowercase) {
+                                el.style.textTransform = 'lowercase';
+                            } else {
+                                el.style.textTransform = 'none';
+                            }
+                        }
+                    });
+                }
+            }
+
+            const introTextEl = wrapper.querySelector('.introText');
+            introTextEl.innerHTML = x_addLineBreaks(intro);
+            
+            // Add translation under intro text
+            if (typeof x_addTranslationUnder === 'function') {
+                x_addTranslationUnder(introTextEl, intro);
+            }
+            
+            wrapper.querySelector('.imageContent').innerHTML = x_currentPageXML.getAttribute('imageHtml') || '';
+
+            const image = wrapper.querySelector('.imageWrapper');
+            const soundIcon = wrapper.querySelector('.soundIcon');
+
+            if (showSpeaker) {
+                soundIcon.style.display = 'block';
+                image.addEventListener('click', () => {
+                    const utterance = new SpeechSynthesisUtterance(correctWord);
+                    utterance.lang = 'nl-NL';
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utterance);
+                });
+            } else {
+                soundIcon.style.display = 'none';
+            }
+
+            const input = wrapper.querySelector('#userInput');
+            const feedback = wrapper.querySelector('#feedback');
+            const hangman = wrapper.querySelector('#hangman');
+            const checkBtn = wrapper.querySelector('#checkButton');
+            const retryBtn = wrapper.querySelector('#retryButton');
+            const hintBtn = wrapper.querySelector('#hintButton');
+
+            // Hide hangman display (not used in this mode)
+            if (hangman) {
+                hangman.style.display = 'none';
+            }
+
+            // Show instruction modal
+            const instructionModal = document.getElementById('instructionModal');
+            // Persist whether user has seen the intro for this exact page so we only show it once
+            var seenKey = 'wt:seen:woordverdwijner:' + (location.pathname || '') + ':' + (typeof x_currentPage !== 'undefined' ? x_currentPage : '');
+            var alreadySeen = false;
+            try { alreadySeen = localStorage.getItem(seenKey) === 'true'; } catch (e) { alreadySeen = false; }
+            if (instructionModal) {
+                if (alreadySeen) {
+                    // don't show modal, start immediately
+                    instructionModal.style.display = 'none';
+                    // start right away
+                    startExercise();
+                } else {
+                    instructionModal.style.display = 'flex';
+                }
+            }
+            if (instructionModal) {
+                const startBtn = document.getElementById('startExerciseBtn');
+                if (startBtn) {
+                    startBtn.onclick = () => {
+                        try { localStorage.setItem(seenKey, 'true'); } catch (e) {}
+                        startExercise();
+                    };
+                }
+                
+                // Translate instructions if language is selected (show translation below text, not replace)
+                const selectedLang = localStorage.getItem('woordenlijst_selected_language') || '';
+                if (selectedLang && selectedLang.trim() !== '' && selectedLang.toLowerCase() !== 'nl') {
+                    // Language flags and names (same as woordenLijstExtended)
+                    const languageFlags = {
+                        'en': '🇬🇧', 'fr': '🇫🇷', 'es': '🇪🇸', 'de': '🇩🇪', 'it': '🇮🇹', 'pt': '🇵🇹',
+                        'ar': '🇸🇦', 'tr': '🇹🇷', 'pl': '🇵🇱', 'ru': '🇷🇺', 'zh': '🇨🇳', 'ja': '🇯🇵',
+                        'ko': '🇰🇷', 'nl': '🇳🇱', 'sv': '🇸🇪', 'no': '🇳🇴', 'da': '🇩🇰', 'fi': '🇫🇮',
+                        'cs': '🇨🇿', 'hu': '🇭🇺', 'ro': '🇷🇴', 'bg': '🇧🇬', 'el': '🇬🇷', 'he': '🇮🇱',
+                        'hi': '🇮🇳', 'uk': '🇺🇦', 'ti': '🇪🇷'
+                    };
+                    
+                    const availableLanguages = [
+                        { code: 'en', name: 'English' }, { code: 'fr', name: 'Français' },
+                        { code: 'es', name: 'Español' }, { code: 'de', name: 'Deutsch' },
+                        { code: 'it', name: 'Italiano' }, { code: 'pt', name: 'Português' },
+                        { code: 'ar', name: 'العربية' }, { code: 'tr', name: 'Türkçe' },
+                        { code: 'pl', name: 'Polski' }, { code: 'ru', name: 'Русский' },
+                        { code: 'zh', name: '中文' }, { code: 'ja', name: '日本語' },
+                        { code: 'ko', name: '한국어' }, { code: 'nl', name: 'Nederlands' },
+                        { code: 'sv', name: 'Svenska' }, { code: 'no', name: 'Norsk' },
+                        { code: 'da', name: 'Dansk' }, { code: 'fi', name: 'Suomi' },
+                        { code: 'cs', name: 'Čeština' }, { code: 'hu', name: 'Magyar' },
+                        { code: 'ro', name: 'Română' }, { code: 'bg', name: 'Български' },
+                        { code: 'el', name: 'Ελληνικά' }, { code: 'he', name: 'עברית' },
+                        { code: 'hi', name: 'हिन्दी' }, { code: 'uk', name: 'Українська' },
+                        { code: 'ti', name: 'ትግርኛ' }
+                    ];
+                    
+                    const translateText = async function(text, targetLang) {
+                        if (!text || text.trim() === '') return '';
+                        try {
+                            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=nl|${encodeURIComponent(targetLang)}&de=f.vangils@curio.nl`;
+                            const response = await fetch(url);
+                            const data = await response.json();
+                            if (data && data.responseData && data.responseData.translatedText) {
+                                let t = data.responseData.translatedText.trim();
+                                if (/MYMEMORY WARNING|USED ALL AVAILABLE FREE|NEXT AVAILABLE IN/i.test(t)) t = 'Vertaling niet beschikbaar';
+                                return t;
+                            }
+                            return '';
+                        } catch (error) {
+                            return '';
+                        }
+                    };
+                    
+                    const showTranslationBelow = async function(text, element) {
+                        const lang = availableLanguages.find(function(l) { return l.code === selectedLang; });
+                        if (!lang) return;
+                        
+                        const translationDiv = document.createElement('div');
+                        translationDiv.style.cssText = 'color: #666; font-size: 0.85rem; font-style: italic; text-align: center; margin-bottom: 0.35rem;';
+                        translationDiv.innerHTML = '<span style="color: #999; font-style: normal;">Laden...</span>';
+                        element.parentNode.insertBefore(translationDiv, element.nextSibling);
+                        
+                        const translation = await translateText(text, selectedLang);
+                        
+                        if (translation && translation.trim() !== '' && translation.toLowerCase() !== text.toLowerCase()) {
+                            const flag = languageFlags[selectedLang] || '🌐';
+                            const langName = lang.name;
+                            translationDiv.innerHTML = flag + ' <span style="color: #666; font-size: 0.9em;">' + langName + ':</span> <span style="color: #333; font-weight: 500;">' + translation + '</span>';
+                        } else {
+                            translationDiv.remove();
+                        }
+                    };
+                    
+                    // Wait a bit to ensure modal is fully rendered
+                    setTimeout(function() {
+                        const instructionText1 = instructionModal.querySelectorAll('p')[0];
+                        const instructionText2 = instructionModal.querySelectorAll('p')[1];
+                        
+                        if (!instructionText1 || !instructionText2) {
+                            return;
+                        }
+                        
+                        // Add translations below the instruction texts
+                        showTranslationBelow('Je gaat een woord zien dat na 5 seconden verdwijnt.', instructionText1);
+                        showTranslationBelow('Typ het woord dat je hebt gezien in het invoerveld.', instructionText2);
+                    }, 100);
+                }
+
+                // Make overlay clickable to dismiss modal and start exercise (only when it's visible)
+                if (instructionModal) {
+                    instructionModal.addEventListener('click', function (e) {
+                        // Only close when clicking on the overlay itself (not inside the modal content)
+                        if (e.target === instructionModal) {
+                            try { localStorage.setItem(seenKey, 'true'); } catch (e) {}
+                            instructionModal.style.display = 'none';
+                            startExercise();
+                        }
+                    });
+                }
+            }
+
+            // Hint button functionality - hints in order (first letter, then sequential)
+            function giveHint() {
+                let currentInput = input.value || '';
+                const alreadyCorrect = [];
+                for (let i = 0; i < Math.min(currentInput.length, correctWord.length); i++) {
+                    if (currentInput[i].toLowerCase() === correctWord[i].toLowerCase()) {
+                        alreadyCorrect.push(i);
+                    }
+                }
+                
+                const needHint = [];
+                for (let i = 0; i < correctWord.length; i++) {
+                    if (!alreadyCorrect.includes(i)) {
+                        needHint.push(i);
+                    }
+                }
+                
+                if (needHint.length === 0) {
+                    if (hintBtn) {
+                        hintBtn.disabled = true;
+                        hintBtn.textContent = 'alle letters bekend';
+                    }
+                    return;
+                }
+                
+                // Priority: first letter, then sequential order
+                let position;
+                if (needHint.includes(0)) {
+                    position = 0;
+                } else {
+                    position = Math.min(...needHint);
+                }
+                
+                let inputArray = currentInput.split('');
+                while (inputArray.length < correctWord.length) {
+                    inputArray.push('');
+                }
+                inputArray[position] = correctWord[position];
+                input.value = inputArray.join('');
+                
+                const newInput = input.value;
+                let allCorrect = true;
+                for (let i = 0; i < correctWord.length; i++) {
+                    if (i >= newInput.length || newInput[i].toLowerCase() !== correctWord[i].toLowerCase()) {
+                        allCorrect = false;
+                        break;
+                    }
+                }
+                if (allCorrect && hintBtn) {
+                    hintBtn.disabled = true;
+                    hintBtn.textContent = 'alle letters bekend';
+                }
+            }
+
+            if (hintBtn) {
+                hintBtn.addEventListener('click', giveHint);
+                hintBtn.style.display = 'inline-block';
+            }
+
+            // Check button mode (no hangman)
+            checkBtn.style.display = 'inline-block';
+
+            // Remove existing listener if any (prevent duplicates)
+            if (checkBtnListener) {
+                checkBtn.removeEventListener('click', checkBtnListener);
+            }
+
+            checkBtnListener = function () {
+                // Prevent multiple scoring if already completed
+                if (exerciseCompleted) {
+                    return;
+                }
+                
+                const userInputRaw = input.value.trim();
+                const userInput = shouldBeLowercase ? userInputRaw.toLowerCase() : userInputRaw;
+                const correctLength = correctWord.length;
+                const inputLength = userInput.length;
+
+                const isCorrect = userInput.toLowerCase() === correctWord.toLowerCase();
+                
+                if (isCorrect) {
+                    // Mark exercise as completed FIRST to prevent double scoring
+                    exerciseCompleted = true;
+
+                    // Stop flashing animation
+                    if (flashInterval) {
+                        clearInterval(flashInterval);
+                        flashInterval = null;
+                    }
+                    
+                    // Clear all fade timeouts
+                    fadeTimeouts.forEach(clearTimeout);
+                    fadeTimeouts = [];
+                    
+                    // Make ghost visible and green
+                    const ghostContainer = wrapper.querySelector('.ghostContainer');
+                    const ghostIcon = wrapper.querySelector('.ghostIcon');
+                    if (ghostContainer) {
+                        ghostContainer.style.transition = 'opacity 0.5s ease-in, transform 0.5s ease-in';
+                        ghostContainer.style.opacity = '1';
+                        ghostContainer.style.visibility = 'visible';
+                        ghostContainer.style.transform = 'translateY(0)';
+                        ghostContainer.classList.add('correct-ghost');
+                    }
+                    if (ghostIcon) {
+                        ghostIcon.style.color = '#28a745'; // Green color
+                        ghostIcon.style.opacity = '0.6'; // More visible when green
+                    }
+                    
+                    // Also make image content visible
+                    const imageContent = wrapper.querySelector('.imageContent');
+                    if (imageContent) {
+                        imageContent.style.opacity = '1';
+                        imageContent.style.visibility = 'visible';
+                    }
+                    
+                    if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+                        XENITH.FEEDBACK.showSuccess({
+                            container: document.getElementById('x_pageDiv'),
+                            message: 'goed gedaan!',
+                            showConfetti: true,
+                            playSound: true
+                        });
+                    } else {
+                        playSuccessSound();
+                        confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 }
+                        });
+                        setTimeout(() => confetti.reset(), 1000);
+                        feedback.innerHTML = `
+                            <div class="feedback-message">
+                                <div class="feedback-content">
+                                    <span class="feedback-text" style="color: green;">goed gedaan!</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    if (window.wtRecordAttempt) window.wtRecordAttempt('woordverdwijner', correctWord, true);
+                    checkBtn.style.display = 'none';
+                    retryBtn.style.display = 'none';
+                } else {
+                    // Only record wrong attempts if not already completed
+                    if (!exerciseCompleted && window.wtRecordAttempt) {
+                        window.wtRecordAttempt('woordverdwijner', correctWord, false, userInput);
+                    }
+                    let incorrect = 0;
+
+                    for (let i = 0; i < Math.min(correctLength, inputLength); i++) {
+                        const correctChar = correctWord[i];
+                        const userChar = userInput[i];
+                        if (userChar && correctChar && userChar.toLowerCase() !== correctChar.toLowerCase()) {
+                            incorrect++;
+                        }
+                    }
+
+                    if (inputLength > correctLength) {
+                        const tooMany = inputLength - correctLength;
+                        feedback.innerHTML = `
+                            <div class="feedback-message">
+                                <div class="feedback-content">
+                                    <span class="feedback-text" style="color: #a00;">❌ ${tooMany} letter${tooMany === 1 ? '' : 's'} te veel.</span>
+                                </div>
+                            </div>
+                        `;
+                    } else if (inputLength < correctLength) {
+                        const missing = correctLength - inputLength;
+                        feedback.innerHTML = `
+                            <div class="feedback-message">
+                                <div class="feedback-content">
+                                    <span class="feedback-text" style="color: #a00;">❌ ${missing} letter${missing === 1 ? '' : 's'} ${missing === 1 ? 'ontbreekt' : 'ontbreken'}.</span>
+                                </div>
+                            </div>
+                        `;
+                    } else if (incorrect > 0) {
+                        feedback.innerHTML = `
+                            <div class="feedback-message">
+                                <div class="feedback-content">
+                                    <span class="feedback-text" style="color: #a00;">❌ ${incorrect} letter${incorrect === 1 ? '' : 's'} ${incorrect === 1 ? 'is' : 'zijn'} fout.</span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        feedback.innerHTML = `
+                            <div class="feedback-message">
+                                <div class="feedback-content">
+                                    <span class="feedback-text" style="color: #a00;">❌ Er is iets mis met de invoer.</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    checkBtn.style.display = 'none';
+                    retryBtn.style.display = 'inline-block';
+                }
+            };
+
+            // Attach click listener once (after assigning checkBtnListener)
+            checkBtn.addEventListener('click', checkBtnListener);
+
+            // Enter in input submits same as check button
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (checkBtnListener && !checkBtn.disabled && checkBtn.style.display !== 'none') {
+                        checkBtnListener();
+                    }
+                }
+            });
+
+            // Retry button functionality
+                    if (retryBtn) {
+                retryBtn.addEventListener('click', () => {
+                    input.value = '';
+                    feedback.innerHTML = '';
+                    checkBtn.style.display = 'inline-block';
+                    checkBtn.disabled = false;
+                    retryBtn.style.display = 'none';
+                    
+                    if (hintBtn) {
+                        hintBtn.disabled = false;
+                        hintBtn.textContent = 'geef hint';
+                    }
+                    
+                    fadeTimeouts.forEach(clearTimeout);
+                    fadeTimeouts = [];
+                    
+                    // Clear flash interval
+                    if (flashInterval) {
+                        clearInterval(flashInterval);
+                        flashInterval = null;
+                    }
+
+                    // Reset state for a new attempt
+                    exerciseStarted = false;
+                    exerciseCompleted = false;
+                    
+                    const instructionModal = document.getElementById('instructionModal');
+                    if (instructionModal) {
+                        instructionModal.style.display = 'none';
+                    }
+                    
+                    const wrapper = document.getElementById('bnwwrapper');
+                    const imageContentRetry = wrapper.querySelector('.imageContent');
+                    const ghostContainerRetry = wrapper.querySelector('.ghostContainer');
+                    
+                    if (ghostContainerRetry) {
+                        ghostContainerRetry.style.opacity = '1';
+                        ghostContainerRetry.style.visibility = 'visible';
+                        ghostContainerRetry.style.transition = '';
+                        ghostContainerRetry.style.transform = 'translateY(0)';
+                    }
+                    if (imageContentRetry) {
+                        imageContentRetry.style.opacity = '1';
+                        imageContentRetry.style.visibility = 'visible';
+                        imageContentRetry.style.transition = '';
+                    }
+                    
+                    setTimeout(() => {
+
+                        if (ghostContainerRetry) {
+                            ghostContainerRetry.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                            const timeout2 = setTimeout(() => {
+                                ghostContainerRetry.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                                ghostContainerRetry.style.opacity = '0';
+                                ghostContainerRetry.style.transform = 'translateY(-20px)';
+                                setTimeout(() => {
+                                    ghostContainerRetry.style.visibility = 'hidden';
+                                    
+                                    // Clear any existing flash interval and start new one (only if not completed)
+                                    if (flashInterval) {
+                                        clearInterval(flashInterval);
+                                    }
+                                    
+                                    if (!exerciseCompleted) {
+                                        // Start flashing every 5 seconds after initial fade
+                                        flashInterval = setInterval(() => {
+                                            // If exercise becomes completed, stop flashing
+                                            if (exerciseCompleted) {
+                                                clearInterval(flashInterval);
+                                                flashInterval = null;
+                                                return;
+                                            }
+
+                                            // Flash for a split second (300ms) with smoother animation
+                                            ghostContainerRetry.style.transition = 'opacity 0.2s ease-in-out, transform 0.2s ease-in-out';
+                                            ghostContainerRetry.style.transform = 'translateY(0)';
+                                            ghostContainerRetry.style.visibility = 'visible';
+                                            // Force reflow to ensure transition works
+                                            void ghostContainerRetry.offsetWidth;
+                                            ghostContainerRetry.style.opacity = '1';
+                                            
+                                            setTimeout(() => {
+                                                ghostContainerRetry.style.transition = 'opacity 0.2s ease-in-out, transform 0.2s ease-in-out';
+                                                ghostContainerRetry.style.opacity = '0';
+                                                ghostContainerRetry.style.transform = 'translateY(-20px)';
+                                                setTimeout(() => {
+                                                    ghostContainerRetry.style.visibility = 'hidden';
+                                                }, 200);
+                                            }, 300); // Flash for 300ms
+                                        }, 3500); // Every 5 seconds
+                                    }
+                                }, 500);
+                            }, 5000);
+                            fadeTimeouts.push(timeout2);
+                        }
+                        
+                        exerciseStarted = true;
+                    }, 50);
+                });
+            }
+        };
+    };
+
+    woordverdwijner.init();
+</script>
+
+<div id="bnwwrapper" class="general-wrapper">
+    <div class="introText"></div>
+    <div class="matchContainer general-wrapper">
+        <div class="wnaItemBlock">
+            <div class="imageWrapper" >
+                <div class="ghostContainer">
+                    <i class="fa fa-ghost ghostIcon"></i>
+                    <div class="imageContent"></div>
+                </div>
+                <div class="soundIcon">🔊</div>
+            </div>
+            <div id="hangman" class="hangmanDisplay" style="display: none;"></div>
+            <input type="text" id="userInput" placeholder="Typ het woord hier..." autocomplete="off" />
+            <button id="checkButton"
+                style="display:none; margin: 0.5rem; padding: 0.5rem 1rem; font-size: 1rem; background-color: #7E1AE3; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                controleer antwoord
+            </button>
+            <button id="retryButton" class="retryButton" style="display: none;">
+                probeer opnieuw
+            </button>
+            <button id="hintButton" class="hintButton" style="display: none;">
+                geef hint
+            </button>
+        </div>
+    </div>
+    <div id="feedback"></div>
+</div>
+
+<!-- Instruction Modal -->
+<div id="instructionModal" class="instruction-modal">
+    <div class="instruction-modal-content">
+        <h2>Instructies</h2>
+        <p>Je gaat een woord zien die na 5 seconden verdwijnt.</p>
+        <p>Typ het woord dat je hebt gezien in het invoerveld.</p>
+        <button id="startExerciseBtn" class="start-button">start</button>
+    </div>
+</div>
+
+<style>
+    .instruction-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .instruction-modal-content {
+        background-color: #ffffff;
+        padding: 2rem;
+        border-radius: 12px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        text-align: center;
+    }
+
+    .instruction-modal-content h2 {
+        margin-top: 0;
+        color: #7E1AE3;
+        font-size: 1.5rem;
+    }
+
+    .instruction-modal-content p {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #333;
+        margin: 0;
+    }
+
+    .start-button {
+        margin-top: 1.5rem;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        font-weight: bold;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .start-button:hover {
+        background-color: #6a16c7;
+    }
+
+    #bnwwrapper {
+        font-family: "Segoe UI", sans-serif;
+        padding: 1rem 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .imageContent p,
+    .imageContent p span {
+        font-size: 1.4rem !important;
+        color: #333 !important;
+        font-family: inherit;
+        text-align: center;
+    }
+
+    .ghostContainer {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 200px;
+        min-height: 150px;
+        transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .ghostIcon {
+        position: absolute;
+        font-size: 150px;
+        color: #7E1AE3;
+        opacity: 0.3;
+        z-index: 1;
+        pointer-events: none;
+        transition: color 0.5s ease, opacity 0.5s ease;
+    }
+
+    .ghostContainer.correct-ghost {
+        animation: pulse-green 1s ease-in-out;
+    }
+
+    @keyframes pulse-green {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .imageContent {
+        position: relative;
+        z-index: 2;
+        transition: opacity 0.5s ease-out;
+        opacity: 1;
+        visibility: visible;
+        width: 100%;
+        text-align: center;
+    }
+
+    .introText {
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+        max-width: 600px;
+    }
+
+    .soundIcon {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+        padding: 6px;
+        font-size: 1.2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        pointer-events: none;
+    }
+
+    .imageWrapper {
+        margin: 0 0 1rem 0;
+        position: relative;
+        max-width: 500px;
+        max-height: 300px;
+    }
+
+    .imageWrapper img {
+        width: 100%;
+        height: auto;
+    }
+
+    .hangmanDisplay {
+        font-size: 1.5rem;
+        letter-spacing: 0.25rem;
+        margin-bottom: 1rem;
+    }
+
+    #feedback {
+        font-size: 1rem;
+        color: #333;
+        margin-top: 0.5rem;
+    }
+
+    .feedback-message {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.5rem;
+    }
+
+    .feedback-content {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        border: 2px solid transparent;
+    }
+
+    .feedback-text {
+        font-weight: 600;
+        font-size: 1.1em;
+        font-size: 0.85em;
+    }
+
+    .retryButton {
+        margin: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .retryButton:hover {
+        background-color: #6a16c7;
+    }
+
+    .hintButton {
+        margin: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        background-color: #7E1AE3;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        font-weight: bold;
+    }
+
+    .hintButton:hover:not(:disabled) {
+        background-color: #6a16c7;
+    }
+
+    .hintButton:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+</style>
+

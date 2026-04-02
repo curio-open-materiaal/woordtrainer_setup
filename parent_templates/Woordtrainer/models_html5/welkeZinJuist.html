@@ -1,0 +1,380 @@
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script type="text/javascript">
+  var welkeZinJuist = new function () {
+    let currentIndex = 0;
+    let items = [];
+    let score = 0;
+
+    // Sound function for correct answers
+    function playSuccessSound() {
+      try {
+        // Create a simple success sound using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {
+      }
+    }
+
+    // Sound function for wrong answers
+    function playErrorSound() {
+      try {
+        // Create a simple error sound using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      } catch (e) {
+      }
+    }
+
+    this.init = function () {
+      document.getElementById('x_pageDiv').firstChild.style.visibility = 'visible';
+
+      const wrapper = document.getElementById('wzjwrapper');
+      if (!wrapper) return;
+
+      // Skip intro text - we don't need it for this quiz
+      wrapper.querySelector('.introText').style.display = 'none';
+      
+      // Get the quiz data directly from the page XML attributes
+      const correct = x_currentPageXML.getAttribute('woordItemCorrect')?.trim();
+      const option1 = x_currentPageXML.getAttribute('woordItemOption1')?.trim();
+      const option2 = x_currentPageXML.getAttribute('woordItemOption2')?.trim();
+      const option3 = x_currentPageXML.getAttribute('woordItemOption3')?.trim();
+
+      if (!correct || !option1 || !option2 || !option3) {
+        wrapper.querySelector('.quizContainer').innerHTML = '<p style="color:red;">Onvolledige quizgegevens. Vul alle velden in.</p>';
+        return;
+      }
+
+      // Keep next button always enabled
+      const topBtn = document.getElementById('x_nextBtn_top');
+      if (topBtn) {
+        topBtn.disabled = false;
+        topBtn.classList.remove('ui-state-disabled');
+        topBtn.setAttribute('aria-disabled', 'false');
+      }
+
+      // Since this is a single question quiz, we don't need arrays
+      renderQuestion(correct, option1, option2, option3);
+    };
+
+    function renderQuestion(correct, option1, option2, option3) {
+      const wrapper = document.getElementById('wzjwrapper');
+      const container = wrapper.querySelector('.quizContainer');
+      container.innerHTML = ''; // clear previous
+
+      const retryTxt = x_currentPageXML.getAttribute('retryBtnTxt') || 'probeer opnieuw';
+
+      // Create array of all options and shuffle them
+      const allOptions = [correct, option1, option2, option3];
+      const shuffled = allOptions.sort(() => Math.random() - 0.5);
+
+      const matchContainer = document.createElement('div');
+      matchContainer.className = 'wzjItemBlock';
+
+      matchContainer.innerHTML = `
+        <div class="quizQuestion">Welke zin is juist?</div>
+        <div class="optionsVertical"></div>
+        <div class="feedback"></div>
+        <div class="btnHolder"></div>
+        <div class="retryBtnHolder" style="display: none;"></div>
+      `;
+
+      const optionsDiv = matchContainer.querySelector('.optionsVertical');
+      const feedback = matchContainer.querySelector('.feedback');
+      const btnHolder = matchContainer.querySelector('.btnHolder');
+      const retryBtnHolder = matchContainer.querySelector('.retryBtnHolder');
+
+      shuffled.forEach((sentence, index) => {
+        const button = document.createElement('button');
+        button.className = 'optionBtn';
+        // Remove literal <p> tags from the text
+        const cleanText = sentence.replace(/<p>/g, '').replace(/<\/p>/g, '').trim();
+        button.innerText = cleanText;
+        button.onclick = () => {
+          if (button.classList.contains('disabled')) return;
+
+          const isCorrect = sentence === correct;
+          
+          if (isCorrect) {
+            button.classList.add('correct');
+            if (XENITH && XENITH.FEEDBACK && XENITH.FEEDBACK.showSuccess) {
+              XENITH.FEEDBACK.showSuccess({
+                container: document.getElementById('x_pageDiv'),
+                message: 'goed gedaan!',
+                showConfetti: true,
+                playSound: true
+              });
+            } else {
+              feedback.innerHTML = `
+                  <div class="feedback-message">
+                      <div class="feedback-content">
+                          <span class="feedback-text" style="color: #28a745;">goed gedaan!</span>
+                      </div>
+                  </div>
+              `;
+              playSuccessSound();
+              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+              setTimeout(() => confetti.reset(), 1000);
+            }
+            disableOptions(optionsDiv);
+            // Record success centrally (use cleaned sentence as the 'word')
+            if (window.wtRecordAttempt) window.wtRecordAttempt('welkeZinJuist', cleanText, true);
+          } else {
+            button.classList.add('wrong');
+            feedback.innerText = 'Helaas, probeer het opnieuw.';
+            feedback.style.color = '#dc3545';
+            playErrorSound();
+            disableOptions(optionsDiv);
+            showRetryButton(retryBtnHolder, retryTxt);
+            if (window.wtRecordAttempt) window.wtRecordAttempt('welkeZinJuist', cleanText, false, cleanText);
+          }
+        };
+        optionsDiv.appendChild(button);
+      });
+
+      container.appendChild(matchContainer);
+    }
+
+    function disableOptions(container) {
+      const options = container.querySelectorAll('.optionBtn');
+      options.forEach(opt => {
+        opt.classList.add('disabled');
+        opt.style.pointerEvents = 'none';
+      });
+    }
+
+    function showRetryButton(holder, retryTxt) {
+      holder.innerHTML = '';
+      const btn = document.createElement('button');
+      btn.className = 'retryBtn';
+      btn.innerText = retryTxt;
+      btn.onclick = () => {
+        welkeZinJuist.init();
+      };
+      holder.style.display = 'block';
+      holder.appendChild(btn);
+    }
+
+    function showNextButton(holder) {
+      const btn = document.createElement('button');
+      btn.className = 'retryBtn';
+      btn.innerText = 'Opnieuw';
+      btn.onclick = () => {
+        welkeZinJuist.init();
+      };
+      holder.appendChild(btn);
+
+      // Enable top next button
+      const topBtn = document.getElementById('x_nextBtn_top');
+      if (topBtn) {
+        topBtn.disabled = false;
+        topBtn.classList.remove('ui-state-disabled');
+        topBtn.setAttribute('aria-disabled', 'false');
+      }
+    }
+  };
+
+  welkeZinJuist.init();
+</script>
+
+<style>
+  #wzjwrapper {
+    font-family: "Segoe UI", sans-serif;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .introText {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #333;
+  }
+
+  .quizQuestion {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #222;
+  }
+
+  .quizContainer {
+    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .wzjItemBlock {
+    margin-bottom: 2.5rem;
+    padding: 2rem;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    background-color: #fdfdfd;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 800px;
+  }
+
+  .optionsVertical {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .optionBtn {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: #f9f9f9 !important;
+    color: black;
+    width: 100%;
+    text-align: center;
+  }
+
+  .optionBtn:hover {
+    background-color: #f5f0ff !important;
+    border-color: #7E1AE3 !important;
+  }
+
+  .optionBtn.correct {
+    background-color: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+  }
+
+  .optionBtn.wrong {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+  }
+
+  .retryBtn {
+    margin-top: 1.5rem;
+    padding: 0.7rem 1.2rem;
+    font-size: 1rem;
+    background-color: #7E1AE3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-transform: lowercase;
+  }
+
+  .retryBtn:hover {
+    background-color: #6515b5;
+  }
+
+  .retryBtnHolder {
+    text-align: center;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .feedback {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .btnHolder {
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    #wzjwrapper {
+      padding: 1rem;
+      min-height: auto;
+    }
+
+    .optionBtn {
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .wzjItemBlock {
+      padding: 1.5rem;
+      margin: 0 auto;
+    }
+
+    .retryBtnHolder {
+      margin-top: 1.5rem;
+      padding: 0 1rem;
+    }
+
+    .retryBtn {
+      width: auto;
+      min-width: 200px;
+    }
+  }
+
+  .feedback-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+
+  .feedback-content {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    
+    border: 2px solid transparent;
+  }
+
+  .feedback-text {
+    font-weight: 600;
+    font-size: 1.1em;
+  }
+</style>
+
+<div id="wzjwrapper">
+  <div class="introText"></div>
+  <div class="quizContainer"></div>
+</div>

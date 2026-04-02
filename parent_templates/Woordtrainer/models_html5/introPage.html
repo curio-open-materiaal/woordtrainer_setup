@@ -1,0 +1,246 @@
+<script type="text/javascript">
+var introPage = new function () {
+    this.init = function () {
+        const $pageContents = $("#pageContents");
+        const $introText = $("#introText");
+        const $woordensetText = $("#woordensetText");
+        const $subsetText = $("#subsetText");
+
+        const woordenSet = x_currentPageXML.getAttribute("woordenSet") || "";
+        const woordenSetSubtitle = x_currentPageXML.getAttribute("woordenSetSubtitle") || "";
+        
+        // Always show "Welkom bij de woordtrainer."
+        $introText.text("Welkom bij de woordtrainer.");
+        
+        // Get main trainer title from x_params.name (shown in header/menu before 'level 1')
+        const mainTitle = (typeof x_params !== 'undefined' && x_params.name) ? x_params.name : '';
+        
+        // Strip HTML tags from title
+        let strippedTitle = '';
+        if (mainTitle) {
+            const div = $("<div>").html(mainTitle);
+            strippedTitle = div.text() || div.textContent || '';
+        }
+        
+        // Use main title for wordenset text if available, otherwise use woordenSet attribute
+        if (strippedTitle && strippedTitle.trim() !== '') {
+            $woordensetText.html('<b>' + strippedTitle.trim() + '</b>');
+        } else if (woordenSet) {
+            $woordensetText.html('<b>' + woordenSet + '</b>');
+        }
+        
+        if (woordenSetSubtitle) {
+            $subsetText.html("subset: <b>" + woordenSetSubtitle + "</b>");
+        }
+
+        // Language selector - load saved language
+        var savedLang = localStorage.getItem('woordenlijst_selected_language') || '';
+        if (savedLang) {
+            $("#languageSelector").val(savedLang);
+        }
+        
+        // Language selector change handler
+        $("#languageSelector").change(function() {
+            var lang = $(this).val();
+            if (lang === '') {
+                localStorage.removeItem('woordenlijst_selected_language');
+            } else {
+                localStorage.setItem('woordenlijst_selected_language', lang);
+            }
+        });
+
+        // Start button action
+        $("#startBtn").click(function () {
+            // First check if there's a title page (level selection) - navigate there if it exists
+            var titlePageIndex = -1;
+            for (var i = 0; i < x_pageInfo.length; i++) {
+                var pageType = x_pageInfo[i] ? x_pageInfo[i].type : '';
+                var pageXML = x_pages[i];
+                var tagName = '';
+                if (pageXML && typeof pageXML.tagName !== 'undefined') {
+                    tagName = pageXML.tagName.toLowerCase();
+                }
+                if (pageType === 'title' || tagName === 'title') {
+                    titlePageIndex = i;
+                    break;
+                }
+            }
+            
+            // If title page exists, navigate there
+            if (titlePageIndex >= 0) {
+                x_changePage(titlePageIndex);
+                return;
+            }
+            
+            // Otherwise, navigate to next page normally
+            const currentIndex = $.inArray(x_currentPage, x_normalPages);
+            if (currentIndex !== -1 && currentIndex < x_normalPages.length - 1) {
+                x_changePage(x_normalPages[currentIndex + 1]);
+            }
+        });
+
+        this.position();
+        
+        // Display UON number if available
+        // Note: in some editor/preview contexts rloObject wrapper may not have run yet,
+        // so `x_uonNumber` might be undefined (avoid ReferenceError).
+        if (typeof x_uonNumber !== 'undefined' && x_uonNumber && x_uonNumber.trim() !== '') {
+            const uonDisplay = document.getElementById('uon-number-display');
+            if (uonDisplay) {
+                uonDisplay.textContent = 'UON: ' + x_uonNumber;
+                uonDisplay.style.display = 'block';
+            }
+        }
+        
+        x_pageLoaded();
+    };
+
+    this.position = function () {
+        const $pageContents = $("#pageContents");
+        $pageContents.css("margin-top", 0);
+
+        if (x_browserInfo.mobile || $pageContents.outerHeight() > $x_pageHolder.height()) {
+            $pageContents.css("position", "inherit");
+            $pageContents.attr('data-position-set-by-page', 'false');
+        } else {
+            $pageContents.css("position", "absolute");
+            $pageContents.css({
+                "top": "50%",
+                "left": "50%",
+                "transform": "translate(-50%, -50%)"
+            });
+            $pageContents.attr('data-position-set-by-page', 'true');
+        }
+    };
+};
+
+introPage.init();
+
+</script>
+
+<style>
+#pageContents {
+    text-align: center;
+    max-width: 700px;
+    margin: auto;
+}
+
+#introText {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+#woordensetText,
+#subsetText, #subtitle {
+    margin-bottom: 0.5em;
+}
+
+#languageSelectorContainer {
+    margin: 1.5em auto 1em auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#languageSelectorLabel {
+    color: #333;
+    font-weight: 400;
+    font-size: 0.9rem;
+}
+
+#languageSelector {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: white;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 220px;
+}
+
+#languageSelector:hover {
+    border-color: #7E1AE3;
+    box-shadow: 0 1px 3px rgba(126, 26, 227, 0.2);
+}
+
+#languageSelector:focus {
+    outline: none;
+    border-color: #7E1AE3;
+    box-shadow: 0 0 0 2px rgba(126, 26, 227, 0.1);
+}
+
+#startBtn {
+    margin-top: 1.5em;
+    margin-bottom: 3.5em;
+    padding: 10px 25px;
+    font-size: 1em;
+    font-weight: bold;
+    background-color: #0077cc;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#startBtn:hover {
+    background-color: #005fa3;
+}
+
+/* Hide next buttons and progress tracker only when introPage is active */
+.x_introPage_page #x_nextBtn,
+.x_introPage_page #x_nextBtn_top,
+.x_introPage_page .x_nextBtn,
+.x_introPage_page #x_pageNo,
+.x_introPage_page #x_progressBar,
+.x_introPage_page #x_progressBarContainer,
+.x_introPage_page .pbHolder {
+    display: none !important;
+}
+</style>
+
+<div id="pageContents">
+    <div id="introText"></div>
+    <div id="subtitle">Je gaat aan de slag met de volgende woordenset:</div>
+    <div id="woordensetText"></div>
+    <div id="subsetText"></div>
+    <button id="startBtn">start</button>
+    <p id="introTipText">Tip: print de woordenlijst uit als je oefeningen gaat doen!</p>
+    <div id="languageSelectorContainer">
+        <label id="languageSelectorLabel" for="languageSelector">Kies taal voor vertalingen (optioneel):</label>
+        <select id="languageSelector">
+            <option value="">geen vertaling</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="it">🇮🇹 Italiano</option>
+            <option value="pt">🇵🇹 Português</option>
+            <option value="ar">🇸🇦 العربية</option>
+            <option value="tr">🇹🇷 Türkçe</option>
+            <option value="pl">🇵🇱 Polski</option>
+            <option value="ru">🇷🇺 Русский</option>
+            <option value="zh">🇨🇳 中文</option>
+            <option value="ja">🇯🇵 日本語</option>
+            <option value="ko">🇰🇷 한국어</option>
+            <option value="nl">🇳🇱 Nederlands</option>
+            <option value="sv">🇸🇪 Svenska</option>
+            <option value="no">🇳🇴 Norsk</option>
+            <option value="da">🇩🇰 Dansk</option>
+            <option value="fi">🇫🇮 Suomi</option>
+            <option value="cs">🇨🇿 Čeština</option>
+            <option value="hu">🇭🇺 Magyar</option>
+            <option value="ro">🇷🇴 Română</option>
+            <option value="bg">🇧🇬 Български</option>
+            <option value="el">🇬🇷 Ελληνικά</option>
+            <option value="he">🇮🇱 עברית</option>
+            <option value="hi">🇮🇳 हिन्दी</option>
+            <option value="uk">🇺🇦 Українська</option>
+            <option value="ti">🇪🇷 ትግርኛ</option>
+        </select>
+    </div>
+</div>
+<div id="uon-number-display" style="position: absolute; bottom: 20px; left: 20px; background-color: rgba(255,255,255,0.3); color: #666; padding: 3px 8px; border-radius: 3px; font-size: 10px; z-index: 1000; display: none;"></div>
+

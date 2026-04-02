@@ -1,0 +1,236 @@
+<script type="text/javascript">
+var colofon = new function () {
+    this.init = function () {
+        // Hide top "verder" button on colofon – nothing to go to after this page
+        var nextBtnTop = document.getElementById('x_nextBtn_top');
+        if (nextBtnTop) nextBtnTop.style.display = 'none';
+
+        const $pageContents = $("#pageContents");
+        const $colofonTitle = $("#colofonTitle");
+        const $leftColumn = $("#leftColumn");
+        const $rightColumn = $("#rightColumn");
+
+        $colofonTitle.text("Colofon");
+        
+        // Left column content
+        $leftColumn.html(`
+            <div class="section">
+                <h3>Ontwikkelinformatie</h3>
+                <p>De woordtrainer is ontwikkeld in samenwerking tussen het Summa Collega, ROC van Amsterdam en Curio. Bij de ontwikkeling van de inhoud zijn NT2-docenten nauw betrokken geweest.</p>
+            </div>
+            
+            <div class="section">
+                <h3>Disclaimer</h3>
+                <p>In deze module is gebruik gemaakt van rechtenvrij beeldmateriaal. Mocht je van mening zijn dat je rechten hebt op gebruikt beeldmateriaal, neemt dan contact op met Curio.</p>
+            </div>
+            
+            <div class="section">
+                <h3>Beeldmateriaal</h3>
+                <p>➡ Unsplash<br>➡ Freepic</p>
+            </div>
+        `);
+        
+        // Right column content
+        $rightColumn.html(`
+            <div class="section">
+                <h3>Gebruik van AI-tools</h3>
+                <p>Bij het ontwikkelen van de woordtrainer hebben de auteurs gebruikgemaakt van generatieve AI-tools ter ondersteuning. Alle gegenereerde informatie is zorgvuldig gecontroleerd en geverifieerd door de auteurs.</p>
+            </div>
+            
+            <div class="section">
+                <h3>Licentie</h3>
+                <p>Deze module wordt uitgebracht als Open Leermateriaal en valt onder de Creative Commons Licentie: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">Naamsvermelding-NietCommercieel-GelijkDelen 4.0 Internationaal</a>.</p>
+                <div class="cc-license">
+                    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license">
+                        <img src="https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png" alt="Creative Commons Licentie" />
+                    </a>
+                    <p style="margin-top: 0.5rem; font-size: 0.75em;"><strong>CC BY-NC-SA 4.0</strong></p>
+                </div>
+                <p>Dit betekent:</p>
+                <ul>
+                    <li>Je mag dit materiaal vrij gebruiken en aanpassen, mits je de naam Curio en de gemaakte wijzigingen vermeld.</li>
+                    <li>Je het bewerkte materiaal onder dezelfde licentie deelt.</li>
+                    <li>Het materiaal mag niet gebruikt worden voor commerciële doeleinden.</li>
+                </ul>
+                <p>Afbeelding afkomstig van Creative Commons, beschikbaar onder de Creative Commons-licentie (CC BY 4.0). Zie <a href="https://creativecommons.org" target="_blank">https://creativecommons.org</a>.</p>
+            </div>
+        `);
+
+        // "Terug naar start" button – navigates to first page (intro)
+        const $backBtn = $('<button type="button" class="colofon-back-btn">terug naar start</button>');
+        $backBtn.on('click', function () {
+            if (typeof x_changePage === 'function') {
+                x_changePage(0);
+            }
+        });
+        $pageContents.append($backBtn);
+
+        this.position();
+        x_pageLoaded();
+    };
+
+    this.position = function () {
+        const $pageContents = $("#pageContents");
+        
+        // Always use relative positioning for better responsive behavior
+        $pageContents.css("position", "relative");
+        $pageContents.css("margin-top", "12rem");
+        $pageContents.css("top", "auto");
+        $pageContents.css("left", "auto");
+        $pageContents.css("transform", "none");
+    };
+};
+
+colofon.init();
+</script>
+
+<style>
+#pageContents {
+    max-width: 1200px;
+    margin: auto;
+    padding: 2rem;
+    padding-top: 15rem;
+    margin-top: 12rem;
+}
+
+#colofonTitle {
+    font-size: 1.5em;
+    margin-bottom: 2em;
+    margin-top: 0;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
+    display: block;
+    visibility: visible;
+}
+
+#twoColumns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: start;
+}
+
+#leftColumn,
+#rightColumn {
+    text-align: left;
+}
+
+.section {
+    margin-bottom: 1.5rem;
+}
+
+.section h3 {
+    font-size: 0.95em;
+    margin-bottom: 0.6rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.section p {
+    font-size: 0.8em;
+    line-height: 1.5;
+    margin-bottom: 0.8rem;
+    color: #555;
+}
+
+.section ul {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.section li {
+    margin-bottom: 0.4rem;
+    line-height: 1.5;
+    font-size: 0.85em;
+    color: #555;
+    font-weight: normal;
+    font-family: inherit;
+}
+
+.section a {
+    color: #7E1AE3;
+    text-decoration: underline;
+}
+
+.section a:hover {
+    color: #6a16c7;
+}
+
+.cc-license {
+    text-align: center;
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background-color: transparent;
+    border-radius: 8px;
+}
+
+.cc-license img {
+    border: none;
+    display: block;
+    margin: 0 auto;
+}
+
+@media (min-width: 960px) {
+    #pageContents {
+        padding-top: 12rem;
+        margin-top: 10rem;
+    }
+}
+
+@media (max-width: 768px) {
+    #twoColumns {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    #pageContents {
+        padding: 1rem;
+        padding-top: 40rem;
+        margin-top: 35rem;
+    }
+    
+    #colofonTitle {
+        margin-bottom: 1rem;
+    }
+    
+    .section {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Hide global "verder" (next) buttons on the colofon page;
+   use "terug naar start" instead */
+#x_nextBtn,
+.x_nextBtn {
+    display: none !important;
+}
+/* Explicitly hide top next button on colofon */
+#x_nextBtn_top {
+    display: none !important;
+}
+
+.colofon-back-btn {
+    display: block;
+    margin: 2rem auto 0;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: #7E1AE3;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.colofon-back-btn:hover {
+    background-color: #6a16c7;
+}
+</style>
+
+<div id="pageContents">
+    <div id="colofonTitle"></div>
+    <div id="twoColumns">
+        <div id="leftColumn"></div>
+        <div id="rightColumn"></div>
+    </div>
+</div>
