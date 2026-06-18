@@ -16,6 +16,7 @@ require_once dirname(__DIR__) . '/config.php';
 
 // Laad setup‑config
 $setupConfig = require __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/settings.php';
 
 // Prevent public access to this install/reset script.
 // Only allow site administrators (or "super"/elevated users) to continue.
@@ -271,8 +272,20 @@ function wt_validate_install()
 // Actie afhandelen
 $action   = $_POST['action'] ?? null;
 $messages = [];
+$settings = wt_load_settings();
 
-if ($action === 'install') {
+if ($action === 'save_settings') {
+    $ok = wt_save_settings([
+        'elevenlabs_api_key' => $_POST['elevenlabs_api_key'] ?? '',
+        'elevenlabs_voice_id' => $_POST['elevenlabs_voice_id'] ?? '',
+    ]);
+    $settings = wt_load_settings();
+    if ($ok) {
+        $messages[] = 'ElevenLabs-instellingen opgeslagen.';
+    } else {
+        $messages[] = 'FOUT: instellingen konden niet worden opgeslagen (controleer schrijfrechten op storage/).';
+    }
+} elseif ($action === 'install') {
     $messages[] = 'Installatie gestart...';
     $messages   = array_merge($messages, wt_install_files($setupConfig['paths']));
     $messages   = array_merge($messages, wt_install_template_db($setupConfig['template']));
@@ -373,6 +386,50 @@ if ($action === 'install') {
             padding: 0.1rem 0.35rem;
             font-size: 0.9em;
         }
+        h2 {
+            margin-top: 2rem;
+            font-size: 1.25rem;
+            color: #111827;
+        }
+        .settings-form {
+            margin-top: 1rem;
+            padding: 1.25rem;
+            border-radius: 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        .settings-form label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.35rem;
+            font-size: 0.95rem;
+        }
+        .settings-form input[type="text"],
+        .settings-form input[type="password"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+        .settings-form .hint {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin: -0.5rem 0 1rem;
+        }
+        .status-ok { color: #047857; font-weight: 600; }
+        .status-miss { color: #b45309; font-weight: 600; }
+        button.settings {
+            background: #2563eb;
+            color: #fff;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        }
+        button.settings:hover {
+            background: #1d4ed8;
+        }
     </style>
 </head>
 <body>
@@ -394,6 +451,36 @@ if ($action === 'install') {
                     Reset installatie
                 </button>
             </div>
+        </form>
+
+        <h2>ElevenLabs (voorlezen)</h2>
+        <p>
+            Stel hier de ElevenLabs API-sleutel in voor deze Xerte-server.
+            Oefeningen gebruiken een server-proxy; de sleutel staat niet meer in gepubliceerde projecten.
+        </p>
+        <p>
+            Status:
+            <?php if (wt_has_elevenlabs_key()): ?>
+                <span class="status-ok">API-sleutel ingesteld (<?php echo htmlspecialchars(wt_mask_api_key($settings['elevenlabs_api_key']), ENT_QUOTES, 'UTF-8'); ?>)</span>
+            <?php else: ?>
+                <span class="status-miss">Nog geen API-sleutel ingesteld — voorlezen werkt niet tot je deze invult.</span>
+            <?php endif; ?>
+        </p>
+
+        <form method="post" class="settings-form">
+            <input type="hidden" name="action" value="save_settings">
+            <label for="elevenlabs_api_key">ElevenLabs API-sleutel</label>
+            <input type="password" id="elevenlabs_api_key" name="elevenlabs_api_key" autocomplete="new-password"
+                   placeholder="<?php echo wt_has_elevenlabs_key() ? 'Laat leeg om huidige sleutel te behouden' : 'sk_...'; ?>">
+            <p class="hint">Haal je sleutel op via <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a> → Profile → API key.</p>
+
+            <label for="elevenlabs_voice_id">Voice ID (optioneel)</label>
+            <input type="text" id="elevenlabs_voice_id" name="elevenlabs_voice_id"
+                   value="<?php echo htmlspecialchars($settings['elevenlabs_voice_id'] ?? WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>"
+                   placeholder="<?php echo htmlspecialchars(WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>">
+            <p class="hint">Standaard Nederlandse stem voor Woordtrainer. Alleen wijzigen als je een andere stem wilt gebruiken.</p>
+
+            <button type="submit" class="settings">Opslaan</button>
         </form>
 
         <p class="warning">

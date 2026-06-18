@@ -323,12 +323,22 @@ function applyPronunciationOverrides(text) {
 
 // speakWithWebDutch removed - only using ElevenLabs now
 
+function getWoordtrainerTtsProxyUrl() {
+    if (typeof window.wtTtsProxyUrl === 'string' && window.wtTtsProxyUrl) {
+        return window.wtTtsProxyUrl;
+    }
+    var path = window.location.pathname || '';
+    var idx = path.indexOf('/modules/');
+    if (idx < 0) {
+        idx = path.indexOf('/website_code/');
+    }
+    var root = idx > 0 ? path.substring(0, idx) : '';
+    return root + '/woordtrainer_setup/api/elevenlabs_tts.php';
+}
+
 // removed progress approximation fallback
 
 function speakWithElevenLabs(text) {
-    const apiKey = "sk_21657303fc05325907b48be0747f64fbcb40620e912e171e"; 
-    const voiceId = "yO6w2xlECAQRFP6pX7Hw"; 
-
     // Stop any currently playing audio
     if (currentAudio) {
         currentAudio.pause();
@@ -341,29 +351,25 @@ function speakWithElevenLabs(text) {
     // Apply overrides and optional Dutch context hint
     let requestText = applyPronunciationOverrides(text);
 
-    // No fallback - always use ElevenLabs
-
-    fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    fetch(getWoordtrainerTtsProxyUrl(), {
         method: 'POST',
         headers: {
-            'xi-api-key': apiKey,
             'Content-Type': 'application/json',
             'Accept': 'audio/mpeg'
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
-            text: requestText,
-            model_id: "eleven_turbo_v2_5",
-            language_code: "nl",
-            voice_settings: {
-                stability: 0.5,
-                similarity_boost: 0.75,
-                style: 0.0,
-                use_speaker_boost: true
-            }
+            text: requestText
         })
     })
     .then(response => {
-        if (!response.ok) throw new Error("API error: " + response.status);
+        if (!response.ok) {
+            return response.json().catch(function () {
+                return { error: 'TTS error: ' + response.status };
+            }).then(function (data) {
+                throw new Error(data.error || ('TTS error: ' + response.status));
+            });
+        }
         return response.blob();
     })
     .then(blob => {
@@ -378,7 +384,6 @@ function speakWithElevenLabs(text) {
     .catch(error => {
         console.error("TTS error:", error);
         hideTTSLoadingSpinner();
-        // No fallback - only use ElevenLabs
     });
 }
 
