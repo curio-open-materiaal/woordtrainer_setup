@@ -9,7 +9,8 @@
   <woordMemory menu="Woordtrainer" menuItem="Woord Memory" hint="Koppel woorden aan hun betekenissen door kaarten om te draaien." icon="icLayers" thumb="thumbs/synonym.jpg" remove="true">
     <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
     <text label="Instructies" type="TextArea" height="100" placeholder="Koppel elk woord aan zijn betekenis door de kaarten om te draaien." optional="true"/>
-    <numberOfPairs label="Aantal woordenparen" type="NumberInput" defaultValue="4" optional="true" tooltip="Kies hoeveel woordenparen er in de memory game zitten (standaard: 4). Het aantal wordt automatisch beperkt tot het aantal beschikbare woorden in de woordenlijst."/>
+    <wordPairsText label="Woorden en betekenissen" type="TextArea" height="200" optional="true" placeholder="Één woord:betekenis per regel:&#10;afrekenen:iets betalen&#10;besluit:iets beslissen&#10;document:een pagina met informatie" tooltip="Vul woordparen in voor deze memory-oefening (handmatige projecten). Wordt gebruikt vóór woordenlijst extended/custom als dit veld is ingevuld."/>
+    <numberOfPairs label="Aantal woordenparen" type="NumberInput" defaultValue="4" optional="true" tooltip="Kies hoeveel woordenparen er in de memory game zitten (standaard: 4). Het aantal wordt automatisch beperkt tot het aantal beschikbare woorden."/>
   </woordMemory>
 </wizard>
 

@@ -20,6 +20,78 @@
         flex-shrink: 0;
     }
 
+    /* Intro block embedded above the word list (when embedIntro="true" in XML) */
+    .wt-embedded-intro-wrapper {
+        text-align: center;
+        max-width: 700px;
+        margin: 0 auto 1.5rem auto;
+        padding: 0 1em;
+        box-sizing: border-box;
+        width: 100%;
+        flex-shrink: 0;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_introText {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_woordensetText,
+    .wt-embedded-intro-wrapper #wtIntro_subsetText,
+    .wt-embedded-intro-wrapper #wtIntro_subtitle {
+        margin-bottom: 0.5em;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_languageSelectorContainer {
+        margin: 1.5em auto 1em auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_languageSelectorLabel {
+        color: #333;
+        font-weight: 400;
+        font-size: 0.9rem;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_languageSelector {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background-color: white;
+        color: #333;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 220px;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_languageSelector:hover {
+        border-color: #7E1AE3;
+        box-shadow: 0 1px 3px rgba(126, 26, 227, 0.2);
+    }
+    .wt-embedded-intro-wrapper #wtIntro_languageSelector:focus {
+        outline: none;
+        border-color: #7E1AE3;
+        box-shadow: 0 0 0 2px rgba(126, 26, 227, 0.1);
+    }
+    .wt-embedded-intro-wrapper #wtIntro_startBtn {
+        margin-top: 1.5em;
+        margin-bottom: 1.25em;
+        padding: 10px 25px;
+        font-size: 1em;
+        font-weight: bold;
+        background-color: #0077cc;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_startBtn:hover {
+        background-color: #005fa3;
+    }
+    .wt-embedded-intro-wrapper #wtIntro_introTipText {
+        margin: 0 0 0.5rem 0;
+        font-size: 0.95rem;
+        color: #555;
+    }
+
     .titles {
         text-align: center;
         max-width: 900px;
@@ -1214,12 +1286,103 @@
             } catch(e) {}
         };
 
-        this.init = function () {
-            // Reset scroll position to top
-            window.scrollTo(0, 0);
-            if (document.documentElement) document.documentElement.scrollTop = 0;
-            if (document.body) document.body.scrollTop = 0;
+        /** Same welcome / taal / start behaviour as introPage.html, scoped IDs (only when embedIntro="true"). */
+        this.initEmbeddedIntro = function () {
+            const $introText = $("#wtIntro_introText");
+            const $woordensetText = $("#wtIntro_woordensetText");
+            const $subsetText = $("#wtIntro_subsetText");
+            const woordenSet = x_currentPageXML.getAttribute("woordenSet") || "";
+            const woordenSetSubtitle = x_currentPageXML.getAttribute("woordenSetSubtitle") || "";
 
+            $introText.text("Welkom bij de woordtrainer.");
+            const mainTitle = (typeof x_params !== 'undefined' && x_params.name) ? x_params.name : '';
+            let strippedTitle = '';
+            if (mainTitle) {
+                const div = $("<div>").html(mainTitle);
+                strippedTitle = div.text() || div.textContent || '';
+            }
+            if (strippedTitle && strippedTitle.trim() !== '') {
+                $woordensetText.html('<b>' + strippedTitle.trim() + '</b>');
+            } else if (woordenSet) {
+                $woordensetText.html('<b>' + woordenSet + '</b>');
+            }
+            if (woordenSetSubtitle) {
+                $subsetText.html("subset: <b>" + woordenSetSubtitle + "</b>");
+            }
+
+            var savedLang = localStorage.getItem('woordenlijst_selected_language') || '';
+            if (savedLang) {
+                $("#wtIntro_languageSelector").val(savedLang);
+            }
+            $("#wtIntro_languageSelector").off('change.wtEmb').on('change.wtEmb', function () {
+                var lang = $(this).val();
+                if (lang === '') {
+                    localStorage.removeItem('woordenlijst_selected_language');
+                } else {
+                    localStorage.setItem('woordenlijst_selected_language', lang);
+                }
+            });
+
+            $("#wtIntro_startBtn").off('click.wtEmb').on('click.wtEmb', function () {
+                var titlePageIndex = -1;
+                for (var i = 0; i < x_pageInfo.length; i++) {
+                    var pageType = x_pageInfo[i] ? x_pageInfo[i].type : '';
+                    var pageXML = x_pages[i];
+                    var tagName = '';
+                    if (pageXML && typeof pageXML.tagName !== 'undefined') {
+                        tagName = pageXML.tagName.toLowerCase();
+                    }
+                    if (pageType === 'title' || tagName === 'title') {
+                        titlePageIndex = i;
+                        break;
+                    }
+                }
+                if (titlePageIndex >= 0) {
+                    x_changePage(titlePageIndex);
+                    return;
+                }
+                var wlSection = document.getElementById('wtWordListSection');
+                if (wlSection && typeof wlSection.scrollIntoView === 'function') {
+                    wlSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
+                const currentIndex = $.inArray(x_currentPage, x_normalPages);
+                if (currentIndex !== -1 && currentIndex < x_normalPages.length - 1) {
+                    x_changePage(x_normalPages[currentIndex + 1]);
+                }
+            });
+
+            if (typeof x_uonNumber !== 'undefined' && x_uonNumber && x_uonNumber.trim() !== '') {
+                const uonDisplay = document.getElementById('wtIntro_uon-number-display');
+                if (uonDisplay) {
+                    uonDisplay.textContent = 'UON: ' + x_uonNumber;
+                    uonDisplay.style.display = 'block';
+                }
+            }
+        };
+
+        this.init = function () {
+            var shouldScrollToWordList = false;
+            try {
+                shouldScrollToWordList = sessionStorage.getItem('wt:scrollToWordList') === '1';
+            } catch (e) {}
+
+            if (!shouldScrollToWordList) {
+                // Reset scroll position to top
+                window.scrollTo(0, 0);
+                if (document.documentElement) document.documentElement.scrollTop = 0;
+                if (document.body) document.body.scrollTop = 0;
+            }
+
+            var embedIntroOn = x_currentPageXML.getAttribute('embedIntro') === 'true';
+            var introWrap = document.getElementById('wtEmbeddedIntroWrapper');
+            if (introWrap) {
+                introWrap.style.display = embedIntroOn ? '' : 'none';
+            }
+            if (embedIntroOn) {
+                this.initEmbeddedIntro();
+            }
+            
             // On this woordenlijst page, redirect the global "verder" button to the level-select (title) page if present.
             (function attachNextToTitle() {
                 try {
@@ -1241,37 +1404,9 @@
                     }
                     if (typeof $ !== 'undefined') {
                         $('#x_nextBtn, #x_nextBtn_top').off('.wtWordsNext').on('click.wtWordsNext', function (e) {
-                            try {
-                                // Only override "next" while we're on the actual words list page.
-                                // Otherwise, exercise pages would also be redirected to the title/level selection.
-                                var absolutePageIndex = -1;
-                                if (typeof x_normalPages !== 'undefined' && x_normalPages && x_normalPages.length) {
-                                    var currentIndexInNormalPages = $.inArray(x_currentPage, x_normalPages);
-                                    if (currentIndexInNormalPages !== -1) {
-                                        absolutePageIndex = x_normalPages[currentIndexInNormalPages];
-                                    }
-                                }
-
-                                var currentType = '';
-                                if (absolutePageIndex >= 0 && x_pageInfo && x_pageInfo[absolutePageIndex]) {
-                                    currentType = (x_pageInfo[absolutePageIndex].type || '').toLowerCase();
-                                }
-
-                                var currentTag = '';
-                                if (typeof x_currentPageXML !== 'undefined' && x_currentPageXML && typeof x_currentPageXML.tagName !== 'undefined') {
-                                    currentTag = (x_currentPageXML.tagName || '').toLowerCase();
-                                }
-
-                                var isWordsList = (currentType === 'woordenlijstextended' || currentType === 'woordenlijst extended' ||
-                                    currentType === 'woordenlijstcustom' || currentType === 'woordenlijst custom' ||
-                                    currentTag === 'woordenlijstextended' || currentTag === 'woordenlijstcustom');
-
-                                if (!isWordsList) return; // Let the normal Xerte next navigation handle it
-
-                                e.preventDefault();
-                                e.stopImmediatePropagation();
-                                x_changePage(titleIndex);
-                            } catch (err) {}
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            x_changePage(titleIndex);
                         });
                     }
                 } catch (e) {}
@@ -1891,6 +2026,47 @@
 </script>
 
 <div id="pageContents">
+    <div id="wtEmbeddedIntroWrapper" class="wt-embedded-intro-wrapper">
+        <div id="wtIntro_introText"></div>
+        <div id="wtIntro_subtitle">Je gaat aan de slag met de volgende woordenset:</div>
+        <div id="wtIntro_woordensetText"></div>
+        <div id="wtIntro_subsetText"></div>
+        <button type="button" id="wtIntro_startBtn">start</button>
+        <p id="wtIntro_introTipText">Tip: print de woordenlijst uit als je oefeningen gaat doen!</p>
+        <div id="wtIntro_languageSelectorContainer">
+            <label id="wtIntro_languageSelectorLabel" for="wtIntro_languageSelector">Kies taal voor vertalingen (optioneel):</label>
+            <select id="wtIntro_languageSelector">
+                <option value="">geen vertaling</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="it">🇮🇹 Italiano</option>
+                <option value="pt">🇵🇹 Português</option>
+                <option value="ar">🇸🇦 العربية</option>
+                <option value="tr">🇹🇷 Türkçe</option>
+                <option value="pl">🇵🇱 Polski</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="zh">🇨🇳 中文</option>
+                <option value="ja">🇯🇵 日本語</option>
+                <option value="ko">🇰🇷 한국어</option>
+                <option value="nl">🇳🇱 Nederlands</option>
+                <option value="sv">🇸🇪 Svenska</option>
+                <option value="no">🇳🇴 Norsk</option>
+                <option value="da">🇩🇰 Dansk</option>
+                <option value="fi">🇫🇮 Suomi</option>
+                <option value="cs">🇨🇿 Čeština</option>
+                <option value="hu">🇭🇺 Magyar</option>
+                <option value="ro">🇷🇴 Română</option>
+                <option value="bg">🇧🇬 Български</option>
+                <option value="el">🇬🇷 Ελληνικά</option>
+                <option value="he">🇮🇱 עברית</option>
+                <option value="hi">🇮🇳 हिन्दी</option>
+                <option value="uk">🇺🇦 Українська</option>
+                <option value="ti">🇪🇷 ትግርኛ</option>
+            </select>
+        </div>
+    </div>
     <div id="wtWordListSection" class="wt-wordlist-section">
         <div class="titles">
             <h3>Jouw <span id="amount-words"></span> nieuwe woorden.</h3>
@@ -1903,6 +2079,7 @@
             </div>
         </div>
     </div>
+    <div id="wtIntro_uon-number-display" style="position: absolute; bottom: 20px; left: 20px; background-color: rgba(255,255,255,0.3); color: #666; padding: 3px 8px; border-radius: 3px; font-size: 10px; z-index: 1000; display: none;"></div>
 </div>
 
 <!-- Voortgang modal (algemeen) -zelfde als levelCompletion -->

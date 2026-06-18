@@ -74,7 +74,7 @@ var colofon = new function () {
         
         // Always use relative positioning for better responsive behavior
         $pageContents.css("position", "relative");
-        $pageContents.css("margin-top", "12rem");
+        $pageContents.css("margin-top", "calc(12rem + 80px)");
         $pageContents.css("top", "auto");
         $pageContents.css("left", "auto");
         $pageContents.css("transform", "none");
@@ -90,7 +90,7 @@ colofon.init();
     margin: auto;
     padding: 2rem;
     padding-top: 15rem;
-    margin-top: 12rem;
+    margin-top: calc(12rem + 80px);
 }
 
 #colofonTitle {
@@ -174,7 +174,7 @@ colofon.init();
 @media (min-width: 960px) {
     #pageContents {
         padding-top: 12rem;
-        margin-top: 10rem;
+        margin-top: calc(10rem + 80px);
     }
 }
 
@@ -187,7 +187,7 @@ colofon.init();
     #pageContents {
         padding: 1rem;
         padding-top: 40rem;
-        margin-top: 35rem;
+        margin-top: calc(35rem + 120px);
     }
     
     #colofonTitle {

@@ -360,8 +360,20 @@
         }
     })();
 
-    document.getElementById('start-btn').addEventListener('click', () => {
-        // Navigate to the woordenlijst page
+    function wtIsWoordenlijstPage(pageType, tagName) {
+        var woordenlijstTypes = [
+            'woordenlijst',
+            'woordenlijstextended',
+            'woordenlijst extended',
+            'woordenlijstextendedcustom',
+            'woordenlijst extended custom',
+            'woordenlijstcustom',
+            'woordenlijst custom'
+        ];
+        return woordenlijstTypes.indexOf(pageType) !== -1 || woordenlijstTypes.indexOf(tagName) !== -1;
+    }
+
+    function wtFindWoordenlijstPageIndex() {
         for (var i = 0; i < x_pageInfo.length; i++) {
             var pageType = x_pageInfo[i].type ? x_pageInfo[i].type.toLowerCase() : '';
             var pageXML = x_pages[i];
@@ -369,16 +381,46 @@
             if (pageXML && typeof pageXML.tagName !== 'undefined') {
                 tagName = pageXML.tagName.toLowerCase();
             }
-            
-            // Find woordenLijstExtended or woordenLijstCustom page
-            if (pageType === 'woordenlijstextended' || pageType === 'woordenlijst extended' || 
-                pageType === 'woordenlijstcustom' || pageType === 'woordenlijst custom' ||
-                tagName === 'woordenlijstextended' || tagName === 'woordenlijstcustom') {
-                x_changePage(i);
-                return;
+            if (wtIsWoordenlijstPage(pageType, tagName)) {
+                return i;
             }
         }
-    });
+        return -1;
+    }
+
+    function wtNavigateToWoordenlijst() {
+        if (typeof x_changePage !== 'function') {
+            return;
+        }
+
+        var wordListIndex = wtFindWoordenlijstPageIndex();
+
+        if (wordListIndex < 0 && typeof x_normalPages !== 'undefined' && x_normalPages.length) {
+            var currentIndex = $.inArray(x_currentPage, x_normalPages);
+            if (currentIndex !== -1 && currentIndex < x_normalPages.length - 1) {
+                wordListIndex = x_normalPages[currentIndex + 1];
+            }
+        }
+
+        if (wordListIndex < 0) {
+            console.warn('Woordtrainer: geen woordenlijst-pagina gevonden.');
+            return;
+        }
+
+        try {
+            sessionStorage.setItem('wt:scrollToWordList', '1');
+        } catch (e) {}
+
+        x_changePage(wordListIndex);
+    }
+
+    var startBtn = document.getElementById('start-btn');
+    if (startBtn) {
+        startBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            wtNavigateToWoordenlijst();
+        });
+    }
 
     // 'intro' button: go back to the first slide (prefer first normal page)
     (function(){

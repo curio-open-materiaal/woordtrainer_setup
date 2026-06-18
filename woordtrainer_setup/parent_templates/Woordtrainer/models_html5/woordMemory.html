@@ -60,8 +60,44 @@
             return tmp.textContent || tmp.innerText || '';
         }
 
-        // Get words and meanings from woordenLijstExtended / woordenLijstCustom pages
+        // Parse word:betekenis lines (one pair per line) from the page field
+        function parseWordPairsText(wordPairsText) {
+            const pairs = [];
+            if (!wordPairsText || !wordPairsText.trim()) return pairs;
+
+            const lines = wordPairsText.split('\n').map(l => l.trim()).filter(Boolean);
+
+            lines.forEach(line => {
+                const wordMatch = line.match(/^([^:]+):(.+)$/);
+                if (wordMatch) {
+                    const word = stripHtml(wordMatch[1].trim());
+                    const meaning = stripHtml(wordMatch[2].trim());
+                    if (word && meaning) {
+                        pairs.push({ word: word, meaning: meaning });
+                    }
+                }
+            });
+
+            return pairs;
+        }
+
+        // Get words and meanings from this page's wordPairsText field, or woordenLijstExtended / woordenLijstCustom pages
         function getWordsFromProject() {
+            // Manual word list on this woord memory page (for non-generative projects)
+            try {
+                if (x_currentPageXML && typeof x_currentPageXML.getAttribute === 'function') {
+                    const pagePairsText = x_currentPageXML.getAttribute('wordPairsText') || '';
+                    if (pagePairsText.trim()) {
+                        const pagePairs = parseWordPairsText(pagePairsText);
+                        if (pagePairs.length > 0) {
+                            return pagePairs;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('woordMemory: error parsing wordPairsText:', e);
+            }
+
             // Eerst bepalen of er überhaupt een Woordenlijst Custom-pagina in het project zit
             let hasCustomWordPage = false;
             try {
@@ -166,10 +202,8 @@
                         const pageXML = x_pages[i];
                         if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
                         
-                        // Check if this is a woordenLijstExtended or woordenLijstCustom page
-                        const tagName = pageXML.tagName || (pageXML.nodeName || '').toLowerCase();
-                        if (tagName === 'woordenlijstextended' || tagName === 'woordenLijstExtended' ||
-                            tagName === 'woordenlijstcustom' || tagName === 'woordenlijst custom') {
+                        const tagName = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+                        if (tagName === 'woordenlijstextended' || tagName === 'woordenlijstcustom') {
                             const wordListText = pageXML.getAttribute('wordListText') || '';
                             
                             if (!wordListText || wordListText.trim() === '') continue;
@@ -258,7 +292,7 @@
                     if (hasCustomSet) {
                         errorMsg += 'Geen woorden gevonden in je geselecteerde woordenlijst. Selecteer eerst woorden via de Woordenlijst Custom pagina.';
                     } else {
-                        errorMsg += 'Geen woorden gevonden. Voeg eerst een Woordenlijst Extended of Woordenlijst Custom pagina toe aan je project.';
+                        errorMsg += 'Geen woorden gevonden. Voeg optioneel Woorden en betekenissen toe op deze pagina, of gebruik Woordenlijst Extended / Custom.';
                     }
                     errorMsg += '</em></p>';
                     container.innerHTML = errorMsg;
