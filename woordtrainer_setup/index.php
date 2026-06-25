@@ -323,6 +323,10 @@ if ($action === 'save_settings') {
             margin-top: 0;
             font-size: 1.8rem;
             color: #111827;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.35rem;
         }
         p {
             color: #4b5563;
@@ -430,11 +434,25 @@ if ($action === 'save_settings') {
         button.settings:hover {
             background: #1d4ed8;
         }
+        .release-badge {
+            display: inline-block;
+            margin-left: 0.5rem;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            background: #ede9fe;
+            color: #5b21b6;
+            font-size: 0.85rem;
+            font-weight: 600;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Woordtrainer installatie</h1>
+        <h1>
+            Woordtrainer installatie
+            <span class="release-badge" title="Woordtrainer setup release">Release <?php echo htmlspecialchars($setupConfig['release'] ?? 'onbekend', ENT_QUOTES, 'UTF-8'); ?></span>
+        </h1>
         <p>
             Met deze pagina kun je de Woordtrainer‑template installeren in deze Xerte‑omgeving.
             De benodigde mappen worden gekopieerd en er wordt een regel toegevoegd aan

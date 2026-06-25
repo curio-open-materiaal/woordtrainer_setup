@@ -11,6 +11,9 @@ $wt_setup_root = __DIR__;
 $wt_xerte_root = dirname(__DIR__);
 
 return [
+    // Bump this when you ship a new Woordtrainer release (shown on the install page).
+    'release' => '2026.06.18',
+
     // Mappen die gekopieerd moeten worden.
     // Elke entry krijgt een absolute bron- en doelmap.
     // In deze setup gebruiken we vier mappen (zoals ze in deze map staan):
