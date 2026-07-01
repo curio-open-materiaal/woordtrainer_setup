@@ -6,6 +6,7 @@
 define('WT_SETTINGS_DIR', dirname(__DIR__) . '/storage');
 define('WT_SETTINGS_FILE', WT_SETTINGS_DIR . '/settings.json');
 define('WT_DEFAULT_VOICE_ID', 'yO6w2xlECAQRFP6pX7Hw');
+define('WT_DEFAULT_HOME_URL', 'https://openwoordtrainer.nl/schooltaal-woorden');
 
 function wt_ensure_storage_dir()
 {
@@ -19,6 +20,7 @@ function wt_default_settings()
     return [
         'elevenlabs_api_key' => '',
         'elevenlabs_voice_id' => WT_DEFAULT_VOICE_ID,
+        'home_url' => WT_DEFAULT_HOME_URL,
     ];
 }
 
@@ -57,6 +59,15 @@ function wt_save_settings(array $settings)
         $current['elevenlabs_voice_id'] = $voiceId;
     } elseif (isset($settings['elevenlabs_voice_id'])) {
         $current['elevenlabs_voice_id'] = WT_DEFAULT_VOICE_ID;
+    }
+
+    if (array_key_exists('home_url', $settings)) {
+        $homeUrl = trim($settings['home_url'] ?? '');
+        if ($homeUrl !== '' && filter_var($homeUrl, FILTER_VALIDATE_URL)) {
+            $current['home_url'] = $homeUrl;
+        } elseif ($homeUrl === '') {
+            $current['home_url'] = '';
+        }
     }
 
     $json = json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);

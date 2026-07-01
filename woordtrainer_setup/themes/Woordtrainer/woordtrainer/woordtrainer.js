@@ -327,13 +327,34 @@ function getWoordtrainerTtsProxyUrl() {
     if (typeof window.wtTtsProxyUrl === 'string' && window.wtTtsProxyUrl) {
         return window.wtTtsProxyUrl;
     }
+    return getWoordtrainerSetupBaseUrl() + '/api/elevenlabs_tts.php';
+}
+
+function getWoordtrainerSetupBaseUrl() {
+    if (typeof window.wtSetupBaseUrl === 'string' && window.wtSetupBaseUrl) {
+        return window.wtSetupBaseUrl;
+    }
     var path = window.location.pathname || '';
     var idx = path.indexOf('/modules/');
     if (idx < 0) {
         idx = path.indexOf('/website_code/');
     }
     var root = idx > 0 ? path.substring(0, idx) : '';
-    return root + '/woordtrainer_setup/api/elevenlabs_tts.php';
+    return root + '/woordtrainer_setup';
+}
+
+function getWoordtrainerPublicSettingsUrl() {
+    return getWoordtrainerSetupBaseUrl() + '/api/public_settings.php';
+}
+
+var wtPublicSettingsPromise = null;
+function loadWoordtrainerPublicSettings() {
+    if (!wtPublicSettingsPromise) {
+        wtPublicSettingsPromise = fetch(getWoordtrainerPublicSettingsUrl(), { credentials: 'same-origin' })
+            .then(function (response) { return response.ok ? response.json() : {}; })
+            .catch(function () { return {}; });
+    }
+    return wtPublicSettingsPromise;
 }
 
 // removed progress approximation fallback
@@ -1365,8 +1386,18 @@ $(document).ready(function () {
     });
 
     $("#x_menuBtn_home").click(function () {
-        // Open the external OpenWoordtrainer page from the home (house) icon
-        window.open("https://openwoordtrainer.nl/schooltaal-woorden", "_self");
+        loadWoordtrainerPublicSettings().then(function (cfg) {
+            var url = (cfg && cfg.home_url) ? String(cfg.home_url).trim() : '';
+            if (url) {
+                window.location.href = url;
+                return;
+            }
+            if (typeof x_goHome === 'function') {
+                x_goHome();
+            } else if (typeof x_changePage === 'function') {
+                x_changePage(0);
+            }
+        });
     });
 
     $("#x_menuBtn_top").click(function () {

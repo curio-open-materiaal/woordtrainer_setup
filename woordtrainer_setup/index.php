@@ -278,10 +278,11 @@ if ($action === 'save_settings') {
     $ok = wt_save_settings([
         'elevenlabs_api_key' => $_POST['elevenlabs_api_key'] ?? '',
         'elevenlabs_voice_id' => $_POST['elevenlabs_voice_id'] ?? '',
+        'home_url' => $_POST['home_url'] ?? '',
     ]);
     $settings = wt_load_settings();
     if ($ok) {
-        $messages[] = 'ElevenLabs-instellingen opgeslagen.';
+        $messages[] = 'Serverinstellingen opgeslagen.';
     } else {
         $messages[] = 'FOUT: instellingen konden niet worden opgeslagen (controleer schrijfrechten op storage/).';
     }
@@ -471,32 +472,36 @@ if ($action === 'save_settings') {
             </div>
         </form>
 
-        <h2>ElevenLabs (voorlezen)</h2>
-        <p>
-            Stel hier de ElevenLabs API-sleutel in voor deze Xerte-server.
-            Oefeningen gebruiken een server-proxy; de sleutel staat niet meer in gepubliceerde projecten.
-        </p>
-        <p>
-            Status:
-            <?php if (wt_has_elevenlabs_key()): ?>
-                <span class="status-ok">API-sleutel ingesteld (<?php echo htmlspecialchars(wt_mask_api_key($settings['elevenlabs_api_key']), ENT_QUOTES, 'UTF-8'); ?>)</span>
-            <?php else: ?>
-                <span class="status-miss">Nog geen API-sleutel ingesteld — voorlezen werkt niet tot je deze invult.</span>
-            <?php endif; ?>
-        </p>
+        <h2>Serverinstellingen</h2>
+        <p>Instellingen voor deze Xerte-server (o.a. home-knop in oefeningen en ElevenLabs voor voorlezen).</p>
 
         <form method="post" class="settings-form">
             <input type="hidden" name="action" value="save_settings">
+
+            <label for="home_url">Home-knop (fa-home) — doel-URL</label>
+            <input type="url" id="home_url" name="home_url"
+                   value="<?php echo htmlspecialchars($settings['home_url'] ?? WT_DEFAULT_HOME_URL, ENT_QUOTES, 'UTF-8'); ?>"
+                   placeholder="<?php echo htmlspecialchars(WT_DEFAULT_HOME_URL, ENT_QUOTES, 'UTF-8'); ?>">
+            <p class="hint">Waar de home-knop in de navigatiebalk naartoe gaat. Laat leeg om terug te vallen op de standaard Xerte-startpagina van het project.</p>
+
             <label for="elevenlabs_api_key">ElevenLabs API-sleutel</label>
             <input type="password" id="elevenlabs_api_key" name="elevenlabs_api_key" autocomplete="new-password"
                    placeholder="<?php echo wt_has_elevenlabs_key() ? 'Laat leeg om huidige sleutel te behouden' : 'sk_...'; ?>">
-            <p class="hint">Haal je sleutel op via <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a> → Profile → API key.</p>
+            <p class="hint">
+                Status:
+                <?php if (wt_has_elevenlabs_key()): ?>
+                    <span class="status-ok">ingesteld (<?php echo htmlspecialchars(wt_mask_api_key($settings['elevenlabs_api_key']), ENT_QUOTES, 'UTF-8'); ?>)</span>
+                <?php else: ?>
+                    <span class="status-miss">nog niet ingesteld</span>
+                <?php endif; ?>
+                — sleutel via <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a> → Profile → API key.
+            </p>
 
             <label for="elevenlabs_voice_id">Voice ID (optioneel)</label>
             <input type="text" id="elevenlabs_voice_id" name="elevenlabs_voice_id"
                    value="<?php echo htmlspecialchars($settings['elevenlabs_voice_id'] ?? WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>"
                    placeholder="<?php echo htmlspecialchars(WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>">
-            <p class="hint">Standaard Nederlandse stem voor Woordtrainer. Alleen wijzigen als je een andere stem wilt gebruiken.</p>
+            <p class="hint">Standaard Nederlandse stem. Alleen wijzigen als je een andere stem wilt gebruiken.</p>
 
             <button type="submit" class="settings">Opslaan</button>
         </form>
