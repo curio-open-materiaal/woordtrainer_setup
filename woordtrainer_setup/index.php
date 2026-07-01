@@ -411,7 +411,8 @@ if ($action === 'save_settings') {
             font-size: 0.95rem;
         }
         .settings-form input[type="text"],
-        .settings-form input[type="password"] {
+        .settings-form input[type="password"],
+        .settings-form input[type="url"] {
             width: 100%;
             box-sizing: border-box;
             padding: 0.6rem 0.75rem;
@@ -419,11 +420,35 @@ if ($action === 'save_settings') {
             border-radius: 8px;
             font-size: 0.95rem;
             margin-bottom: 1rem;
+            background: #fff;
+            color: #111827;
+        }
+        .settings-form input[type="text"]:focus,
+        .settings-form input[type="password"]:focus,
+        .settings-form input[type="url"]:focus {
+            outline: none;
+            border-color: #7E1AE3;
+            box-shadow: 0 0 0 3px rgba(126, 26, 227, 0.12);
         }
         .settings-form .hint {
             font-size: 0.85rem;
             color: #6b7280;
             margin: -0.5rem 0 1rem;
+            line-height: 1.45;
+        }
+        .settings-group {
+            margin-bottom: 0.25rem;
+        }
+        .settings-group + .settings-group {
+            margin-top: 1.25rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        .settings-group h3 {
+            margin: 0 0 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111827;
         }
         .status-ok { color: #047857; font-weight: 600; }
         .status-miss { color: #b45309; font-weight: 600; }
@@ -478,30 +503,45 @@ if ($action === 'save_settings') {
         <form method="post" class="settings-form">
             <input type="hidden" name="action" value="save_settings">
 
-            <label for="home_url">Home-knop (fa-home) — doel-URL</label>
-            <input type="url" id="home_url" name="home_url"
-                   value="<?php echo htmlspecialchars($settings['home_url'] ?? WT_DEFAULT_HOME_URL, ENT_QUOTES, 'UTF-8'); ?>"
-                   placeholder="<?php echo htmlspecialchars(WT_DEFAULT_HOME_URL, ENT_QUOTES, 'UTF-8'); ?>">
-            <p class="hint">Waar de home-knop in de navigatiebalk naartoe gaat. Laat leeg om terug te vallen op de standaard Xerte-startpagina van het project.</p>
+            <div class="settings-group">
+                <h3>Home-knop (fa-home)</h3>
+                <label for="home_url">Doel-URL</label>
+                <input type="url" id="home_url" name="home_url"
+                       value="<?php echo htmlspecialchars($settings['home_url'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                       placeholder="<?php echo htmlspecialchars(WT_DEFAULT_HOME_URL, ENT_QUOTES, 'UTF-8'); ?>">
+                <p class="hint">
+                    Status:
+                    <?php
+                    $homeUrl = trim($settings['home_url'] ?? '');
+                    if ($homeUrl !== ''): ?>
+                        <span class="status-ok">ingesteld</span> — <?php echo htmlspecialchars($homeUrl, ENT_QUOTES, 'UTF-8'); ?>
+                    <?php else: ?>
+                        <span class="status-miss">standaard Xerte-startpagina</span> — vul een URL in om naar een externe homepagina te gaan.
+                    <?php endif; ?>
+                </p>
+            </div>
 
-            <label for="elevenlabs_api_key">ElevenLabs API-sleutel</label>
-            <input type="password" id="elevenlabs_api_key" name="elevenlabs_api_key" autocomplete="new-password"
-                   placeholder="<?php echo wt_has_elevenlabs_key() ? 'Laat leeg om huidige sleutel te behouden' : 'sk_...'; ?>">
-            <p class="hint">
-                Status:
-                <?php if (wt_has_elevenlabs_key()): ?>
-                    <span class="status-ok">ingesteld (<?php echo htmlspecialchars(wt_mask_api_key($settings['elevenlabs_api_key']), ENT_QUOTES, 'UTF-8'); ?>)</span>
-                <?php else: ?>
-                    <span class="status-miss">nog niet ingesteld</span>
-                <?php endif; ?>
-                — sleutel via <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a> → Profile → API key.
-            </p>
+            <div class="settings-group">
+                <h3>ElevenLabs (voorlezen)</h3>
+                <label for="elevenlabs_api_key">API-sleutel</label>
+                <input type="password" id="elevenlabs_api_key" name="elevenlabs_api_key" autocomplete="new-password"
+                       placeholder="<?php echo wt_has_elevenlabs_key() ? 'Laat leeg om huidige sleutel te behouden' : 'sk_...'; ?>">
+                <p class="hint">
+                    Status:
+                    <?php if (wt_has_elevenlabs_key()): ?>
+                        <span class="status-ok">ingesteld (<?php echo htmlspecialchars(wt_mask_api_key($settings['elevenlabs_api_key']), ENT_QUOTES, 'UTF-8'); ?>)</span>
+                    <?php else: ?>
+                        <span class="status-miss">nog niet ingesteld</span>
+                    <?php endif; ?>
+                    — sleutel via <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a> → Profile → API key.
+                </p>
 
-            <label for="elevenlabs_voice_id">Voice ID (optioneel)</label>
-            <input type="text" id="elevenlabs_voice_id" name="elevenlabs_voice_id"
-                   value="<?php echo htmlspecialchars($settings['elevenlabs_voice_id'] ?? WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>"
-                   placeholder="<?php echo htmlspecialchars(WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>">
-            <p class="hint">Standaard Nederlandse stem. Alleen wijzigen als je een andere stem wilt gebruiken.</p>
+                <label for="elevenlabs_voice_id">Voice ID (optioneel)</label>
+                <input type="text" id="elevenlabs_voice_id" name="elevenlabs_voice_id"
+                       value="<?php echo htmlspecialchars($settings['elevenlabs_voice_id'] ?? WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>"
+                       placeholder="<?php echo htmlspecialchars(WT_DEFAULT_VOICE_ID, ENT_QUOTES, 'UTF-8'); ?>">
+                <p class="hint">Standaard Nederlandse stem. Alleen wijzigen als je een andere stem wilt gebruiken.</p>
+            </div>
 
             <button type="submit" class="settings">Opslaan</button>
         </form>
