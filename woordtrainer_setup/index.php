@@ -504,7 +504,7 @@ if ($action === 'save_settings') {
             <input type="hidden" name="action" value="save_settings">
 
             <div class="settings-group">
-                <h3>Home-knop (fa-home)</h3>
+                <h3>Home knop</h3>
                 <label for="home_url">Doel-URL</label>
                 <input type="url" id="home_url" name="home_url"
                        value="<?php echo htmlspecialchars($settings['home_url'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"

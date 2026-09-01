@@ -10,6 +10,7 @@
 	<displayMode type="ComboBox" options="Fixed size,Fill window" data="default,fill window" label="Display Mode" width="100" conditionTrigger="true" tooltip="By default, the project will fill the browser window. When display mode is set to 'fixed size', the project will be limited to 800x600 pixels. This fixed size can be changed using the 'fixed display size' optional property."/>
 	<responsive type="CheckBox" label="Responsive Text" defaultValue="false" mandatory="true" conditionTrigger="true"/>
 	<uonNumber type="TextInput" label="UON Number" width="200" tooltip="Unique identifier for this project" mandatory="true" defaultValue=""/>
+	<homeButtonUrl type="TextInput" label="Home-knop URL (override)" width="400" mandatory="true" defaultValue="" placeholder="https://..." tooltip="Optioneel. Overschrijft de home-knop URL uit de Woordtrainer-installatie voor dit project. Laat leeg voor de server-default."/>
 	<textSize type="ComboBox" options="10,12,14,16,18,24,36" label="Default Text Size" width="100" tooltip="The default text size will only be used when responsive text is turned off. It can also be overridden when a text size is directly set in the text editor" condition="responsive!='true'"/>
 	
 	<!-- OPTIONAL PROPERTIES -->

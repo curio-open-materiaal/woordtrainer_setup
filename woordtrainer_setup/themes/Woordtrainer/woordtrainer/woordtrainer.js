@@ -357,6 +357,33 @@ function loadWoordtrainerPublicSettings() {
     return wtPublicSettingsPromise;
 }
 
+function getProjectHomeButtonUrl() {
+    if (typeof x_params === 'undefined' || !x_params.homeButtonUrl) {
+        return '';
+    }
+    return String(x_params.homeButtonUrl).trim();
+}
+
+function navigateHomeButton() {
+    var projectUrl = getProjectHomeButtonUrl();
+    if (projectUrl) {
+        window.location.href = projectUrl;
+        return;
+    }
+    loadWoordtrainerPublicSettings().then(function (cfg) {
+        var url = (cfg && cfg.home_url) ? String(cfg.home_url).trim() : '';
+        if (url) {
+            window.location.href = url;
+            return;
+        }
+        if (typeof x_goHome === 'function') {
+            x_goHome();
+        } else if (typeof x_changePage === 'function') {
+            x_changePage(0);
+        }
+    });
+}
+
 // removed progress approximation fallback
 
 function speakWithElevenLabs(text) {
@@ -1386,18 +1413,7 @@ $(document).ready(function () {
     });
 
     $("#x_menuBtn_home").click(function () {
-        loadWoordtrainerPublicSettings().then(function (cfg) {
-            var url = (cfg && cfg.home_url) ? String(cfg.home_url).trim() : '';
-            if (url) {
-                window.location.href = url;
-                return;
-            }
-            if (typeof x_goHome === 'function') {
-                x_goHome();
-            } else if (typeof x_changePage === 'function') {
-                x_changePage(0);
-            }
-        });
+        navigateHomeButton();
     });
 
     $("#x_menuBtn_top").click(function () {

@@ -78,6 +78,30 @@ var x_languageData = [],
 var xot_offline = !(typeof modelfilestrs === 'undefined');
 var modelfilestrs = modelfilestrs || [];
 
+/**
+ * Append a cache-busting query param to dynamically loaded template assets.
+ * HTML models in preview: always fresh (timestamp) so editor/install edits show immediately.
+ * Other assets: Xerte version + Woordtrainer stamp (bump x_wtAssetStamp / release on install).
+ */
+var x_wtAssetStamp = '2026.09.01a';
+function x_cacheBustUrl(url, forceFresh) {
+	if (!url || typeof url !== 'string') return url;
+	if (/^(data:|blob:|#|javascript:)/i.test(url)) return url;
+	var sep = url.indexOf('?') >= 0 ? '&' : '?';
+	var isPreview = false;
+	try {
+		isPreview = /preview/i.test(String(window.location.pathname || '') + String(window.location.href || ''));
+	} catch (e) {}
+	var v;
+	if (forceFresh === true || (isPreview && /\.html(\?|$)/i.test(url))) {
+		v = String(Date.now());
+	} else {
+		var base = (typeof x_Version !== 'undefined' && x_Version) ? String(x_Version) : '1';
+		v = base + '-' + x_wtAssetStamp;
+	}
+	return url + sep + 'wtv=' + encodeURIComponent(v);
+}
+
 var $x_window, $x_body, $x_head, $x_mainHolder, $x_mobileScroll, $x_headerBlock, $x_pageHolder, $x_helperText, $x_pageDiv, $x_footerBlock, $x_footerL,
 	$x_introBtn, $x_helpBtn, $x_pageIntroBtn, $x_glossaryBtn, $x_menuBtn, $x_colourChangerBtn, $x_saveSessionBtn, $x_prevBtn, $x_pageNo, $x_nextBtn, $x_cssBtn, $x_background;
 
@@ -1335,9 +1359,9 @@ function x_cssSetUp(param) {
 		case "theme":
 			if (x_params.theme != undefined) {
 				if (!xot_offline) {
-					$.getScript(x_themePath + x_params.theme + '/' + x_params.theme + '.js'); // most themes won't have this js file
+					$.getScript(x_cacheBustUrl(x_themePath + x_params.theme + '/' + x_params.theme + '.js')); // most themes won't have this js file
 				}
-				x_insertCSS(x_themePath + x_params.theme + '/' + x_params.theme + '.css', function () {
+				x_insertCSS(x_cacheBustUrl(x_themePath + x_params.theme + '/' + x_params.theme + '.css'), function () {
 					x_cssSetUp("responsivetheme");
 				}, false, "theme_css", true);
 			} else {
@@ -1348,9 +1372,9 @@ function x_cssSetUp(param) {
 			if (x_params.responsive == "true" && x_params.theme != "default") {
 				// adds theme responsivetext.css - in some circumstances this will be immediately disabled
 				if (x_params.displayMode == "default" || $.isArray(x_params.displayMode)) { // immediately disable responsivetext.css after loaded
-					x_insertCSS(x_themePath + x_params.theme + "/responsivetext.css", function () { x_cssSetUp("projectStylesheet") }, true, "theme_responsive_css", true);
+					x_insertCSS(x_cacheBustUrl(x_themePath + x_params.theme + "/responsivetext.css"), function () { x_cssSetUp("projectStylesheet") }, true, "theme_responsive_css", true);
 				} else {
-					x_insertCSS(x_themePath + x_params.theme + "/responsivetext.css", function () { x_cssSetUp("projectStylesheet") }, false, "theme_responsive_css", true);
+					x_insertCSS(x_cacheBustUrl(x_themePath + x_params.theme + "/responsivetext.css"), function () { x_cssSetUp("projectStylesheet") }, false, "theme_responsive_css", true);
 				}
 			} else {
 				x_cssSetUp("projectStylesheet");
@@ -2635,7 +2659,7 @@ function x_changePage(x_gotoPage, addHistory) {
 				x_changePageStep2(x_gotoPage);
 			} else {
 				// Load CSS file for regular pages
-				var cssFilePath = x_templateLocation + "models_html5/" + modelfile + ".css";
+				var cssFilePath = x_cacheBustUrl(x_templateLocation + "models_html5/" + modelfile + ".css");
 				x_insertCSS(cssFilePath, function () {
 					x_changePageStep2(x_gotoPage);
 				}, false, "page_model_css");
@@ -3457,7 +3481,7 @@ function x_changePageStep3() {
 				x_loadPage("", "success", "");
 			}
 			else {
-				var htmlFilePath = x_templateLocation + "models_html5/" + modelfile + ".html";
+				var htmlFilePath = x_cacheBustUrl(x_templateLocation + "models_html5/" + modelfile + ".html", true);
 				$("#x_page" + x_currentPage).load(htmlFilePath, x_loadPage);
 			}
 		}
@@ -4672,7 +4696,7 @@ function x_openDialog(type, title, close, position, load, onclose) {
 						x_setDialogSize($x_popupDialog, position);
 					}
 					else {
-						$x_popupDialog.load(x_templateLocation + "models_html5/" + type + ".html", function () {
+						$x_popupDialog.load(x_cacheBustUrl(x_templateLocation + "models_html5/" + type + ".html", true), function () {
 							x_setDialogSize($x_popupDialog, position);
 						});
 					}
@@ -5983,7 +6007,7 @@ var XENITH = (function ($, parent) {
 
 							$.featherlight($(), {
 								contentFilters: 'ajax',
-								ajax: x_templateLocation + 'models_html5/glossary.html',
+								ajax: x_cacheBustUrl(x_templateLocation + 'models_html5/glossary.html'),
 								variant: 'lightbox' + (x_browserInfo.mobile != true ? 'Medium' : 'Auto')
 							});
 
@@ -9044,9 +9068,31 @@ function x_getExerciseConfig(exerciseType, wordData, virtualPageData) {
 			// Use betekenis as text content (displayed in place of image)
 			var imageHtml = betekenis ? '<div style="font-size: 1.2em; padding: 1rem; text-align: center;">' + betekenis + '</div>' : '';
 			
+			// Prefer instruction from an existing (manual) woordtrainerQuiz page in the project
+			var instruction = 'Welk woord hoort hier?';
+			try {
+				if (typeof x_pages !== 'undefined' && x_pages && x_pages.length) {
+					for (var pi = 0; pi < x_pages.length; pi++) {
+						var pageXML = x_pages[pi];
+						if (!pageXML || typeof pageXML.getAttribute !== 'function') continue;
+						var tagName = (pageXML.tagName || pageXML.nodeName || '').toLowerCase();
+						if (tagName !== 'woordtrainerquiz') continue;
+						if (pageXML.getAttribute('virtual') === 'true') continue;
+						var rawInstr = pageXML.getAttribute('woordItemText') || pageXML.getAttribute('text') || '';
+						var tmp = document.createElement('div');
+						tmp.innerHTML = rawInstr;
+						var plainInstr = (tmp.textContent || tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+						if (plainInstr) {
+							instruction = plainInstr;
+							break;
+						}
+					}
+				}
+			} catch (e) {}
+
 			config = {
 				woordItemCorrect: word,
-				woordItemText: 'Welk woord hoort hier?',
+				woordItemText: instruction,
 				woordItemOptions: options.join('|'), // Options separated by |
 				woordItemImageHtml: imageHtml
 			};

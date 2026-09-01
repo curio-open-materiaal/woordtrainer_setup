@@ -2,7 +2,7 @@
   <pageWizard remove="true" duplicate="false">
     <newNodes>
       <colofon><![CDATA[
-        <colofon name="colofon"
+        <colofon name="colofon" leftText="" rightText=""
         />
       ]]></colofon>
     </newNodes>
@@ -15,5 +15,10 @@
     icon="icLayers"
     thumb="thumbs/hotspotImage.jpg"
     remove="true">
+
+    <name label="Paginatitel" type="TextInput" wysiwyg="true"/>
+    <leftText label="Linker kolom" type="TextArea" height="250" wysiwyg="true" placeholder="Laat leeg voor standaardtekst (alleen als beide kolommen leeg zijn)"/>
+    <rightText label="Rechter kolom" type="TextArea" height="250" wysiwyg="true" placeholder="Laat leeg voor standaardtekst (alleen als beide kolommen leeg zijn)"/>
+
   </colofon>
 </wizard>

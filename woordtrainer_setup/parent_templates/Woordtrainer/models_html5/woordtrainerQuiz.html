@@ -8,16 +8,34 @@
       const wrapper = document.getElementById('quizWrapper');
       if (!wrapper) return;
 
-      const intro = 'Welk woord hoort hier?';
-      const introTextEl = wrapper.querySelector('.introText');
-      introTextEl.innerHTML = intro;
-      
-      // Add translation under intro text
-      if (typeof x_addTranslationUnder === 'function') {
-        x_addTranslationUnder(introTextEl, intro);
+      // Use backend "Vraag / Instructie" (woordItemText); fall back to text, then default
+      function getInstructionText() {
+        var raw = '';
+        try {
+          raw = x_currentPageXML.getAttribute('woordItemText')
+            || x_currentPageXML.getAttribute('text')
+            || '';
+        } catch (e) {}
+        var tmp = document.createElement('div');
+        tmp.innerHTML = raw;
+        var plain = (tmp.textContent || tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+        return plain || 'Welk woord hoort hier?';
       }
 
-      const vraag = x_currentPageXML.getAttribute('woordItemText') || '';
+      const intro = getInstructionText();
+      const introTextEl = wrapper.querySelector('.introText');
+      if (introTextEl) {
+        if (typeof x_addLineBreaks === 'function') {
+          introTextEl.innerHTML = x_addLineBreaks(intro);
+        } else {
+          introTextEl.textContent = intro;
+        }
+        // Add translation under intro text
+        if (typeof x_addTranslationUnder === 'function') {
+          x_addTranslationUnder(introTextEl, intro);
+        }
+      }
+
       const opties = (x_currentPageXML.getAttribute('woordItemOptions') || '').split('|');
       const correct = x_currentPageXML.getAttribute('woordItemCorrect') || '';
       const image = x_currentPageXML.getAttribute('img') || '';
@@ -57,7 +75,7 @@
         } catch (e) {}
       }
 
-      renderQuestion(vraag, opties, correct, image, imageHtml);
+      renderQuestion(intro, opties, correct, image, imageHtml);
     };
 
     function playSuccess() {
@@ -118,8 +136,7 @@
       const container = document.querySelector('.quizContainer');
       container.innerHTML = '';
 
-      // Only show quizQuestion if vraag is different from introText or not empty
-      // Since introText already shows "Welk woord hoort hier?", we don't need to show it again
+      // Question text is shown in .introText above; options go below
       const layout = document.createElement('div');
       layout.className = 'quizLayout';
 

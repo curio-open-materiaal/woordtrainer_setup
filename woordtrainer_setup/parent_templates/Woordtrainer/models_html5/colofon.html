@@ -1,19 +1,6 @@
 <script type="text/javascript">
 var colofon = new function () {
-    this.init = function () {
-        // Hide top "verder" button on colofon – nothing to go to after this page
-        var nextBtnTop = document.getElementById('x_nextBtn_top');
-        if (nextBtnTop) nextBtnTop.style.display = 'none';
-
-        const $pageContents = $("#pageContents");
-        const $colofonTitle = $("#colofonTitle");
-        const $leftColumn = $("#leftColumn");
-        const $rightColumn = $("#rightColumn");
-
-        $colofonTitle.text("Colofon");
-        
-        // Left column content
-        $leftColumn.html(`
+    var DEFAULT_LEFT = `
             <div class="section">
                 <h3>Ontwikkelinformatie</h3>
                 <p>De woordtrainer is ontwikkeld in samenwerking tussen het Summa Collega, ROC van Amsterdam en Curio. Bij de ontwikkeling van de inhoud zijn NT2-docenten nauw betrokken geweest.</p>
@@ -28,10 +15,9 @@ var colofon = new function () {
                 <h3>Beeldmateriaal</h3>
                 <p>➡ Unsplash<br>➡ Freepic</p>
             </div>
-        `);
-        
-        // Right column content
-        $rightColumn.html(`
+        `;
+
+    var DEFAULT_RIGHT = `
             <div class="section">
                 <h3>Gebruik van AI-tools</h3>
                 <p>Bij het ontwikkelen van de woordtrainer hebben de auteurs gebruikgemaakt van generatieve AI-tools ter ondersteuning. Alle gegenereerde informatie is zorgvuldig gecontroleerd en geverifieerd door de auteurs.</p>
@@ -54,7 +40,57 @@ var colofon = new function () {
                 </ul>
                 <p>Afbeelding afkomstig van Creative Commons, beschikbaar onder de Creative Commons-licentie (CC BY 4.0). Zie <a href="https://creativecommons.org" target="_blank">https://creativecommons.org</a>.</p>
             </div>
-        `);
+        `;
+
+    this.isEmptyHtml = function (html) {
+        if (html == null || html === '') return true;
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        var plain = (tmp.textContent || tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+        return plain === '';
+    };
+
+    this.getColumnHtml = function (attrName) {
+        if (!x_currentPageXML || typeof x_currentPageXML.getAttribute !== 'function') {
+            return '';
+        }
+        var raw = x_currentPageXML.getAttribute(attrName);
+        if (raw == null) return '';
+        return String(raw);
+    };
+
+    this.init = function () {
+        // Hide top "verder" button on colofon – nothing to go to after this page
+        var nextBtnTop = document.getElementById('x_nextBtn_top');
+        if (nextBtnTop) nextBtnTop.style.display = 'none';
+
+        const $pageContents = $("#pageContents");
+        const $colofonTitle = $("#colofonTitle");
+        const $leftColumn = $("#leftColumn");
+        const $rightColumn = $("#rightColumn");
+
+        $colofonTitle.text("Colofon");
+
+        var leftRaw = this.getColumnHtml('leftText');
+        var rightRaw = this.getColumnHtml('rightText');
+        var leftEmpty = this.isEmptyHtml(leftRaw);
+        var rightEmpty = this.isEmptyHtml(rightRaw);
+
+        var leftHtml;
+        var rightHtml;
+        var useDefaults = leftEmpty && rightEmpty;
+        if (useDefaults) {
+            leftHtml = DEFAULT_LEFT;
+            rightHtml = DEFAULT_RIGHT;
+            $pageContents.addClass('colofon--defaults');
+        } else {
+            leftHtml = leftEmpty ? '' : (typeof x_addLineBreaks === 'function' ? x_addLineBreaks(leftRaw) : leftRaw);
+            rightHtml = rightEmpty ? '' : (typeof x_addLineBreaks === 'function' ? x_addLineBreaks(rightRaw) : rightRaw);
+            $pageContents.removeClass('colofon--defaults');
+        }
+
+        $leftColumn.html(leftHtml);
+        $rightColumn.html(rightHtml);
 
         // "Terug naar start" button – navigates to first page (intro)
         const $backBtn = $('<button type="button" class="colofon-back-btn">terug naar start</button>');
@@ -71,10 +107,9 @@ var colofon = new function () {
 
     this.position = function () {
         const $pageContents = $("#pageContents");
-        
-        // Always use relative positioning for better responsive behavior
+        // Spacing via CSS (incl. media queries); don't set margin-top inline
         $pageContents.css("position", "relative");
-        $pageContents.css("margin-top", "calc(12rem + 80px)");
+        $pageContents.css("margin-top", "");
         $pageContents.css("top", "auto");
         $pageContents.css("left", "auto");
         $pageContents.css("transform", "none");
@@ -87,10 +122,21 @@ colofon.init();
 <style>
 #pageContents {
     max-width: 1200px;
-    margin: auto;
+    margin: 0 auto;
     padding: 2rem;
+}
+
+/* Large top offset only for default (both columns empty) content */
+#pageContents.colofon--defaults {
     padding-top: 15rem;
     margin-top: calc(12rem + 80px);
+}
+
+@media (min-width: 960px) {
+    #pageContents.colofon--defaults {
+        padding-top: 12rem;
+        margin-top: calc(10rem + 80px);
+    }
 }
 
 #colofonTitle {
@@ -171,13 +217,6 @@ colofon.init();
     margin: 0 auto;
 }
 
-@media (min-width: 960px) {
-    #pageContents {
-        padding-top: 12rem;
-        margin-top: calc(10rem + 80px);
-    }
-}
-
 @media (max-width: 768px) {
     #twoColumns {
         grid-template-columns: 1fr;
@@ -186,6 +225,12 @@ colofon.init();
     
     #pageContents {
         padding: 1rem;
+        /* Custom (filled) content: clear the taller mobile header */
+        margin-top: 100px;
+        padding-top: 1.5rem;
+    }
+
+    #pageContents.colofon--defaults {
         padding-top: 40rem;
         margin-top: calc(35rem + 120px);
     }
@@ -196,6 +241,13 @@ colofon.init();
     
     .section {
         margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    #pageContents:not(.colofon--defaults) {
+        margin-top: 130px;
+        padding-top: 1.25rem;
     }
 }
 
