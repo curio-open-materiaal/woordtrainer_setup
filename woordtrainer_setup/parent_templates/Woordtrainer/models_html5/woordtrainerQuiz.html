@@ -249,17 +249,40 @@
 </div>
 
 <style>
+  #x_pageDiv:has(#quizWrapper) {
+    align-items: stretch;
+    overflow: hidden;
+  }
 
-    .quizContainer {
-    margin-top: 25px !important;
+  #x_pageDiv:has(#quizWrapper) > div:not(.wt-success-notification) {
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .quizContainer {
+    margin-top: 0.75rem !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   #quizWrapper {
     font-family: "Segoe UI", sans-serif;
-    padding: 2rem;
-    
+    padding: 0.75rem 1rem;
     max-width: 1000px;
     margin: 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .introText {
@@ -267,6 +290,7 @@
     font-size: 1.2rem;
     font-weight: bold;
     color: #333;
+    flex: 0 0 auto;
   }
 
 
@@ -281,14 +305,20 @@
 
   .quizLayout {
     display: flex;
-    gap: 2rem;
+    gap: 1rem;
     align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
   }
 
   .quizImage {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     width: 50%;
-    height: 330px;
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    flex: 1 1 50%;
     display: flex;
     flex-direction: column;
     text-align: center;
@@ -350,8 +380,9 @@
     width: 100%;
   }
 
+  .quizTextContent,
   .quizTextContent p {
-    font-size: 3vmin !important;
+    font-size: 1rem !important;
     margin: 0;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -367,13 +398,6 @@
     padding: 0.5rem;
   }
 
-  .quizTextContent p {
-    font-size: 3vmin !important;
-    margin: 0;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
   /* Add spacing between image and text when both are present */
   .quizImage img + .quizTextContent,
   .quizImage .quizTextContent + img {
@@ -381,7 +405,8 @@
   }
 
   .quizOptions {
-    flex: 1;
+    flex: 1 1 50%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -390,13 +415,17 @@
   .optionsGrid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    align-content: center;
+    grid-template-rows: 1fr 1fr;
+    gap: 0.75rem;
+    align-content: stretch;
     height: 100%;
+    min-height: 0;
   }
 
   .optionBtn {
-    padding: 4.25rem 1rem;
+    padding: 0.75rem 1rem;
+    height: 100%;
+    min-height: 0;
     font-size: 1rem;
     border: 1px solid #ccc;
     color: #444;
@@ -479,29 +508,51 @@
   }
 
   @media (max-width: 768px) {
+    #quizWrapper {
+      padding: 0.4rem 0.6rem;
+    }
+
+    .quizContainer {
+      margin-top: 0.4rem !important;
+    }
+
+    .introText {
+      font-size: 1rem;
+    }
+
     .quizLayout {
       flex-direction: column;
-      align-items: center;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+
+    .quizTextContent,
+    .quizTextContent p {
+      font-size: 0.9rem !important;
     }
 
     .optionBtn {
-      padding: 1.5rem 1rem;
+      padding: 0.4rem 0.5rem;
       font-size: 0.9rem;
     }
 
     .quizImage,
     .quizOptions {
       width: 100%;
+      flex: 1 1 auto;
     }
 
     .quizImage {
-      margin-bottom: 1.5rem;
-      height: 250px;
+      margin-bottom: 0;
+      height: auto;
+      max-height: 22vh;
+      flex: 0 1 22vh;
     }
 
     .optionsGrid {
-      grid-template-columns: 1fr;
-      /* Stack buttons vertically on mobile */
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 0.45rem;
     }
   }
 

@@ -147,12 +147,30 @@
 </div>
 
 <style>
+  #x_pageDiv:has(#fcwrapper) {
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  #x_pageDiv:has(#fcwrapper) > div {
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   #fcwrapper {
     font-family: "Segoe UI", sans-serif;
-    padding: 1rem 2rem;
+    padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
   }
 
   .introText {
@@ -169,17 +187,19 @@
 
 
 .cardContainer {
-  margin-top: 25px;
+  margin-top: 0.75rem;
   display: flex;
   justify-content: center;
-  align-items: center; /* Added for vertical centering */
+  align-items: center;
   width: 100%;
-  height: 300px; /* Set a consistent height */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
 }
 
 .flashcard {
-  width: 400px;
-  height: 300px;
+  width: min(420px, 100%);
+  height: min(320px, 100%);
   perspective: 1000px;
   display: flex;
   align-items: center;
@@ -272,12 +292,16 @@
     width: 100%;
   }
 
-  .cardTextContent p {
-    font-size: 3.5vmin;
+  .cardTextContent,
+  .cardTextContent p,
+  .cardBack,
+  .cardBack p {
+    font-size: clamp(1.75rem, 5vmin, 3rem) !important;
+    line-height: 1.15;
     color: #333;
     margin: 0;
     word-wrap: break-word;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
   }
 
   .cardBack {
@@ -287,7 +311,7 @@
   }
 
   .cardBack p {
-    font-size: 3.5vmin;
+    font-size: clamp(1.75rem, 5vmin, 3rem) !important;
   }
 
   .cardBack img {
@@ -304,5 +328,14 @@
     opacity: 0.6;
     pointer-events: none;
     z-index: 10;
+  }
+
+  @media (max-width: 768px) {
+    .cardTextContent,
+    .cardTextContent p,
+    .cardBack,
+    .cardBack p {
+      font-size: clamp(0.95rem, 4.2vmin, 1.35rem) !important;
+    }
   }
 </style>
